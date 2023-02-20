@@ -1,6 +1,6 @@
-# doggy manga crawler
+# manga crawler
 
-A test crawler of doggy manga, developing
+A test crawler of manga, developing
 
 ## Quick start
 pip install -r requirements.txt  
