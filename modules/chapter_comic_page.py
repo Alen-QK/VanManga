@@ -22,6 +22,8 @@ def chapter_comic_page(chapter):
 
     for img_tag in img_collection:
         img_page = findPage.findall(img_tag['alt'])
-        img_array.append([img_page[0], img_tag['data-page-image-url']])
+        img_id = img_tag['data-page-image-url'].split('/')
+        img_array.append([img_page[0], img_id[-1]])
 
-    download_img(chapter_title, img_array)
+    session = requests.Session()
+    download_img(chapter_title, img_array, session)

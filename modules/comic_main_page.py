@@ -4,9 +4,11 @@ from bs4 import BeautifulSoup
 from modules.ua_producer import ua_producer
 
 
-def comic_main_page(target):
+def comic_main_page(target, session):
     headers = {'User-Agent': ua_producer(), "Accept-Language": "en-US"}
-    response = requests.get(target, headers= headers).text
+    target_link = f'https://dogemanga.com/m/{target}'
+
+    response = session.get(target_link, headers= headers).text
     soup = BeautifulSoup(response, 'lxml')
     tab_content = soup.find_all('a', class_= 'site-manga-thumbnail__link')
     chapters_array = list()
