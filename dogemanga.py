@@ -117,6 +117,18 @@ def download_img(chapter_title, img_array, session):
 
             time.sleep(1 + int(random.random() * 1))
 
+# 查询指定的漫画长度
+def search_comic_progress(manga_id):
+    headers = {'User-Agent': ua_producer()}
+    target_link = f'https://dogemanga.com/m/{manga_id}?l=zh'
+
+    response = requests.get(target_link, headers=headers).text
+    soup = BeautifulSoup(response, 'lxml')
+    tab_content = soup.select('.tab-content > #site-manga__tab-pane-all')[0]
+    # 它的长度之后对于last epi的计算有作用
+    tab_content = tab_content.find_all('a', class_='site-manga-thumbnail__link')
+    return len(tab_content)
+
 def entry(manga_id):
     global g_error_flag
     session = requests.Session()
