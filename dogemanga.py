@@ -8,10 +8,14 @@ from bs4 import BeautifulSoup
 from modules.ua_producer import ua_producer
 from modules.make_path import path_exists_make
 
+# 简单的task锁，如果遇到block，则直接加锁，加锁状态下需要检查的下载动作都将暂缓执行
 g_error_flag = False
+# 错误基数初始化，用于计算等待时间，当各个访问步骤遭遇block时，自增，上限为5
 g_error_count = 0
+# block后基础等待时间
 g_wait_time = 40
 target_folder_path = ''
+
 # 漫画页面，抓取所有章节
 def comic_main_page(target, session):
     headers = {'User-Agent': ua_producer()}
@@ -48,7 +52,7 @@ def chapter_comic_page(chapter):
     chapter_link = chapter[1]
 
     print(chapter_title)
-    # 找出‘Page #’
+    # 找出‘第 # 页’
     # findPage = re.compile('Page\s\d+$')
     findPage = re.compile('第\s\d+\s[页|頁]')
 
@@ -57,8 +61,10 @@ def chapter_comic_page(chapter):
 
     if response.status_code == 429:
         g_error_flag = True
+        # 设定error_count的最大上限为5
         if g_error_count < 6:
             g_error_count += 1
+        # 计算等待时间
         wait_time = g_wait_time * g_error_count + int(random.random() * 10)
         print('%s: 章节抓取遇到429错误，将开始等待%d s' % (chapter_title, wait_time))
         time.sleep(wait_time)
@@ -93,6 +99,7 @@ def download_img(chapter_title, img_array, session):
     headers = {'User-Agent': ua_producer()}
 
     for img in img_array:
+        # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
         while g_error_flag:
             print('page线程停止中')
         img_title = img[0]
@@ -102,8 +109,10 @@ def download_img(chapter_title, img_array, session):
 
         if response.status_code == 429:
             g_error_flag = True
+
             if g_error_count < 6:
                 g_error_count += 1
+
             wait_time = g_wait_time * g_error_count + int(random.random() * 10)
             print('%s: 单页抓取遇到429错误，将开始等待%d s' % (img_title, wait_time))
             time.sleep(wait_time)
@@ -130,11 +139,13 @@ def search_comic_progress(manga_id):
     tab_content = soup.select('.tab-content > #site-manga__tab-pane-all')[0]
     # 它的长度之后对于last epi的计算有作用
     tab_content = tab_content.find_all('a', class_='site-manga-thumbnail__link')
+
     return len(tab_content)
 
 def entry(manga_id, start, end):
     global g_error_flag
     global target_folder_path
+
     session = requests.Session()
     target = manga_id
     target_folder_path = f'./{manga_id}'
@@ -146,11 +157,15 @@ def entry(manga_id, start, end):
     count = 0
     total = len(chapters_array)
 
+    # 使用多线程来分配抓取任务
     with concurrent.futures.ThreadPoolExecutor(max_workers= 3) as executor:
         # executor.map(chapter_comic_page, chapters_array)
         for chapter in chapters_array:
+
+            # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓
             while g_error_flag:
                 print('线程停止中')
+
             executor.submit(chapter_comic_page, chapter)
             time.sleep(2 + int(random.random() * 3))
 

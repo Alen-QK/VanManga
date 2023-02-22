@@ -25,6 +25,7 @@ confirm_post_args.add_argument('manga_object', type= str, help= 'thumbnail of th
 def dogemangaTask():
     entry('UsprF-z2')
 
+# 实际上后台下载选定漫画的task
 def confirm_comic_task(manga_object):
     manga_name = manga_object['manga_name']
     manga_id = manga_object['manga_id']
@@ -35,6 +36,7 @@ def confirm_comic_task(manga_object):
 
     manga_library = json.load(open('./manga_library.json', encoding= 'utf-8'))
 
+    # 如果不在library中，就初始化记录并下载全本
     if manga_id not in manga_library:
         manga_info = dict()
         manga_info['manga_name'] = manga_name
@@ -48,9 +50,10 @@ def confirm_comic_task(manga_object):
             json.dump(manga_library, f)
 
         entry(manga_id, 0, current_manga_length)
+    # 反之，则更新原有记录
     else:
         cur_manga_info = manga_library[manga_id]
-
+        # 如果最新数量大于记录数量，说明有更新需要下载
         if current_manga_length > cur_manga_info['last_epi']:
             start = cur_manga_info['last_epi'] + 1
             cur_manga_info['manga_name'] = manga_name
@@ -63,11 +66,11 @@ def confirm_comic_task(manga_object):
             with open('./manga_library.json', 'w') as f:
                 json.dump(manga_library, f)
 
+            # 从记录数量+1开始到最新都下载
             entry(manga_id, start, current_manga_length)
+        # 反之，则跳过
         else:
             pass
-
-
 
 
 class DogeSearch(Resource):
