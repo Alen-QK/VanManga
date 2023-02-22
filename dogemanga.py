@@ -6,10 +6,12 @@ import random
 import concurrent.futures
 from bs4 import BeautifulSoup
 from modules.ua_producer import ua_producer
+from modules.make_path import path_exists_make
 
 g_error_flag = False
 g_error_count = 0
 g_wait_time = 40
+target_folder_path = ''
 # 漫画页面，抓取所有章节
 def comic_main_page(target, session):
     headers = {'User-Agent': ua_producer()}
@@ -84,9 +86,10 @@ def download_img(chapter_title, img_array, session):
     global g_error_flag
     global g_error_count
     global g_wait_time
+    global target_folder_path
 
-    folder_path = ('./%s' % chapter_title)
-    os.makedirs(folder_path, exist_ok= True)
+    folder_path = target_folder_path + f'/{chapter_title}'
+    path_exists_make(folder_path)
     headers = {'User-Agent': ua_producer()}
 
     for img in img_array:
@@ -129,12 +132,17 @@ def search_comic_progress(manga_id):
     tab_content = tab_content.find_all('a', class_='site-manga-thumbnail__link')
     return len(tab_content)
 
-def entry(manga_id):
+def entry(manga_id, start, end):
     global g_error_flag
+    global target_folder_path
     session = requests.Session()
     target = manga_id
+    target_folder_path = f'./{manga_id}'
+    path_exists_make(target_folder_path)
+
     chapters_array = comic_main_page(target, session)
     chapters_array.reverse()
+    chapters_array = chapters_array[start:end]
     count = 0
     total = len(chapters_array)
 
@@ -145,6 +153,7 @@ def entry(manga_id):
                 print('线程停止中')
             executor.submit(chapter_comic_page, chapter)
             time.sleep(2 + int(random.random() * 3))
+
     # for chapter in chapters_array:
     #     chapter_comic_page(chapter)
     #

@@ -1,8 +1,14 @@
-[
-  {
-    "manga_name": "电锯人",
-    "manga_id": "2X_-40f-",
-    "last_epi": 100,
+{
+  "2X_-40f-": {
+    "manga_name": "\u7535\u952f\u4eba",
+    "artist_name": "wzl",
+    "last_epi": 144,
+    "thumbnail": "None"
+  },
+  "2IQkLPXJ": {
+    "manga_name": "zzx",
+    "artist_name": "wzl",
+    "last_epi": 4,
     "thumbnail": "None"
   }
-]
+}
