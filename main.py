@@ -97,9 +97,13 @@ class DogeSearch(Resource):
     def get(self):
         args = request.args
         search_name = args['manga_name']
+        r = dict()
 
         if search_name == '':
-            abort(404, message= 'manga_name should not be empty!')
+            r['code'] = 457
+            r['data'] = 'manga_name should not be empty!'
+
+            return r
 
         headers = {'User-Agent': ua_producer()}
         url = f'https://dogemanga.com/?q={search_name}&l=zh'
@@ -134,10 +138,16 @@ class DogeSearch(Resource):
 
                 results.append(manga_dict)
 
-            return results, 200
+            r['code'] = 200
+            r['data'] = results
+            return r
 
         except:
-            abort(404, message= 'No manga searched.')
+
+            r['code'] = 457
+            r['data'] = 'No manga searched.'
+
+            return r
 
 
 class DogePost(Resource):
@@ -154,15 +164,15 @@ class DogePost(Resource):
         # 后台工作交由多线程执行，先返回200
         Thread(target= confirm_comic_task, args= [manga_id]).start()
 
-        return 'submitted', 200
+        return {'data': 'submitted', 'code': 200}
 
 class DogeLibrary(Resource):
     def post(self):
         global manga_library
 
-        response = [item for item in manga_library.values()]
+        r = [item for item in manga_library.values()]
 
-        return response, 200
+        return {'data': r, 'code': 200}
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
