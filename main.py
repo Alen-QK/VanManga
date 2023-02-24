@@ -97,6 +97,10 @@ class DogeSearch(Resource):
     def get(self):
         args = request.args
         search_name = args['manga_name']
+
+        if search_name == '':
+            abort(404, message= 'manga_name should not be empty!')
+
         headers = {'User-Agent': ua_producer()}
         url = f'https://dogemanga.com/?q={search_name}&l=zh'
         response = requests.get(url, headers= headers)
@@ -130,7 +134,7 @@ class DogeSearch(Resource):
 
                 results.append(manga_dict)
 
-            return results
+            return results, 200
 
         except:
             abort(404, message= 'No manga searched.')
