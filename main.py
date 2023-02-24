@@ -79,7 +79,7 @@ def confirm_comic_task(manga_id):
 
             for f in concurrent.futures.as_completed(finish):
                 tmp = dict()
-                tmp['newest_epi'], tmp['newest_epi_name'] = f.result()[0], f.result()[1]
+                tmp['manga_id'], tmp['newest_epi'], tmp['newest_epi_name'] = manga_id, f.result()[0], f.result()[1]
                 socketio.emit('response', tmp)
 
         manga_library[manga_id]['completed'] = True
