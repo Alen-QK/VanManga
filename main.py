@@ -156,7 +156,9 @@ class DogeLibrary(Resource):
     def post(self):
         global manga_library
 
-        return manga_library
+        response = [item for item in manga_library.values()]
+
+        return response
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
