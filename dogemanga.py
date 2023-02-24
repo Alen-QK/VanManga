@@ -15,17 +15,22 @@ g_error_count = 0
 # block后基础等待时间
 g_wait_time = 40
 target_folder_path = ''
+# 记录当前查找的漫画的ID
+Mid = ''
+ST = 0
+Library = dict()
+
 
 # 漫画页面，抓取所有章节
 def comic_main_page(target, session):
     headers = {'User-Agent': ua_producer()}
     target_link = f'https://dogemanga.com/m/{target}?l=zh'
 
-    response = session.get(target_link, headers= headers).text
+    response = session.get(target_link, headers=headers).text
     soup = BeautifulSoup(response, 'lxml')
     tab_content = soup.select('.tab-content > #site-manga__tab-pane-all')[0]
     # 它的长度之后对于last epi的计算有作用
-    tab_content = tab_content.find_all('a', class_= 'site-manga-thumbnail__link')
+    tab_content = tab_content.find_all('a', class_='site-manga-thumbnail__link')
     chapters_array = list()
     # 去掉尾部的换行
     cutTail = re.compile('^\s+|\s+$')
@@ -35,18 +40,21 @@ def comic_main_page(target, session):
 
     for content in tab_content:
         link = content['href']
-        title = content.find('span', class_= 'text-center').text
+        title = content.find('span', class_='text-center').text
         title = cutTail.sub('', title)
         title = cutEmoji.sub('', title)
         chapters_array.append([title, link])
 
     return chapters_array
 
+
 # 单章节，抓取所有图片的必须信息
 def chapter_comic_page(chapter):
     global g_error_flag
     global g_error_count
     global g_wait_time
+    global Mid
+    global ST
 
     chapter_title = chapter[0]
     chapter_link = chapter[1]
@@ -57,7 +65,7 @@ def chapter_comic_page(chapter):
     findPage = re.compile('第\s\d+\s[页|頁]')
 
     headers = {'User-Agent': ua_producer()}
-    response = requests.get(chapter_link, headers= headers)
+    response = requests.get(chapter_link, headers=headers)
 
     if response.status_code == 429:
         g_error_flag = True
@@ -73,10 +81,10 @@ def chapter_comic_page(chapter):
         chapter_comic_page(chapter)
     else:
         soup = BeautifulSoup(response.text, 'lxml')
-        site_reader = soup.find('div', class_= 'site-reader')
+        site_reader = soup.find('div', class_='site-reader')
         img_array = list()
         # 匹配具有‘data-page-image-url’属性的图片tag
-        img_collection = site_reader.find_all('img', attrs= {'data-page-image-url': True})
+        img_collection = site_reader.find_all('img', attrs={'data-page-image-url': True})
 
         for img_tag in img_collection:
             img_page = findPage.findall(img_tag['alt'])
@@ -85,7 +93,13 @@ def chapter_comic_page(chapter):
 
         session = requests.Session()
         download_img(chapter_title, img_array, session)
+        # td
+        Library[Mid]['last_epi'] = ST
+        Library[Mid]['last_epi_name'] = chapter_title
+        ST += 1
+
         print('%s is downloaded' % chapter_title)
+
 
 # 抓取图片
 def download_img(chapter_title, img_array, session):
@@ -105,7 +119,7 @@ def download_img(chapter_title, img_array, session):
         img_title = img[0]
         img_id = img[1]
         target_link = f'https://dogemanga.com/images/pages/{img_id}?l=zh'
-        response = session.get(target_link, headers= headers)
+        response = session.get(target_link, headers=headers)
 
         if response.status_code == 429:
             g_error_flag = True
@@ -129,6 +143,7 @@ def download_img(chapter_title, img_array, session):
 
             time.sleep(1 + int(random.random() * 1))
 
+
 # 查询指定的漫画长度
 def search_comic_progress(manga_id):
     headers = {'User-Agent': ua_producer()}
@@ -142,10 +157,17 @@ def search_comic_progress(manga_id):
 
     return len(tab_content)
 
-def entry(manga_id, start, end):
+
+def entry(manga_id, start, end, LB):
     global g_error_flag
     global target_folder_path
+    global Mid
+    global ST
+    global Library
 
+    Mid = manga_id
+    ST = start
+    Library = LB
     session = requests.Session()
     target = manga_id
     target_folder_path = f'./{manga_id}'
@@ -158,7 +180,7 @@ def entry(manga_id, start, end):
     total = len(chapters_array)
 
     # 使用多线程来分配抓取任务
-    with concurrent.futures.ThreadPoolExecutor(max_workers= 3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         # executor.map(chapter_comic_page, chapters_array)
         for chapter in chapters_array:
 
@@ -176,7 +198,10 @@ def entry(manga_id, start, end):
     #     print('Complete %d chapters, %d is pending\n' % (count, total - count))
     #     time.sleep(2 + int(random.random() * 3))
 
+    Library[manga_id]['completed'] = True
     print('done')
+
+    # return Library
 
 # if __name__ == '__main__':
 #     entry('TbCLIzv0')

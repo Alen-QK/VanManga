@@ -1,14 +1,1 @@
-{
-  "2X_-40f-": {
-    "manga_name": "\u7535\u952f\u4eba",
-    "artist_name": "wzl",
-    "last_epi": 144,
-    "thumbnail": "None"
-  },
-  "2IQkLPXJ": {
-    "manga_name": "zzx",
-    "artist_name": "wzl",
-    "last_epi": 4,
-    "thumbnail": "None"
-  }
-}
+{"2IQkLPXJ": {"manga_name": "zzx", "manga_id": "2IQkLPXJ", "artist_name": "wzl", "thumbnail": "None", "last_epi": 3, "last_epi_name": "\u7b2c4\u8bdd", "completed": true, "add_date": 1677224175.341201}}
