@@ -17,7 +17,7 @@ class DGmanga(MangaSite):
         self.GEF = False
         self.GEC = 0
         self.GWT = 0
-        self.COUNT = 0
+        self.Current_idx = 0
     def check_manga_length(self):
         headers = {'User-Agent': ua_producer()}
         target_link = f'https://dogemanga.com/m/{self.manga_id}?l=zh'
@@ -66,11 +66,10 @@ class DGmanga(MangaSite):
 
         return chapters_array
 
-    def scrape_each_chapter(self, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, ST):
+    def scrape_each_chapter(self, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, his_length, idx):
         self.GEF = g_error_flag
         self.GEC = g_error_count
         self.GWT = g_wait_time
-        self.COUNT = ST
 
         chapter_title = chapter[0]
         chapter_link = chapter[1]
@@ -110,13 +109,20 @@ class DGmanga(MangaSite):
             session = requests.Session()
             self.download_img(chapter_title, img_array, session)
             # td
-            self.COUNT += 1
-            manga_library[self.manga_id]['last_epi'] = self.COUNT
-            manga_library[self.manga_id]['last_epi_name'] = chapter_title
+            if self.Current_idx < idx:
+                self.Current_idx = idx
+                manga_library[self.manga_id]['last_epi'] = self.Current_idx + his_length
+                manga_library[self.manga_id]['last_epi_name'] = chapter_title
 
-            print('%s is downloaded' % chapter_title)
+                print('%s is downloaded' % chapter_title)
 
-            return (self.COUNT, chapter_title)
+                return (self.Current_idx + his_length, chapter_title, True)
+            else:
+                # manga_library[self.manga_id]['last_epi_name'] = chapter_title
+
+                print('%s is downloaded' % chapter_title)
+
+                return (idx, chapter_title, False)
 
     def download_img(self, chapter_title, img_array, session):
 
@@ -145,7 +151,7 @@ class DGmanga(MangaSite):
                 time.sleep(wait_time)
                 self.GEF = False
                 print('重新开始抓取')
-                self.download_img(chapter_title, chapter_title, img_array, session)
+                self.download_img(chapter_title, chapter_title, img_array)
             else:
                 target_path = folder_path + ('/%s' % img_title) + '.jpg'
 

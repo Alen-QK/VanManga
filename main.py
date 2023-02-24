@@ -68,27 +68,45 @@ def confirm_comic_task(manga_id):
         with concurrent.futures.ThreadPoolExecutor(max_workers= 3) as executor:
             finish = list()
             # executor.map(chapter_comic_page, chapters_array)
-            for chapter in chapters_array:
+            for idx, chapter in enumerate(chapters_array):
                 # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓 todo
                 while g_error_flag:
                     print('线程停止中')
 
-                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, start)
+                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, history_length, idx)
                 finish.append(future)
                 time.sleep(2 + int(random.random() * 3))
 
             for f in concurrent.futures.as_completed(finish):
                 tmp = dict()
-                tmp['manga_id'], tmp['newest_epi'], tmp['newest_epi_name'] = manga_id, f.result()[0], f.result()[1]
-                socketio.emit('response', tmp)
+                res = f.result()
+
+                if res[2]:
+                    tmp['manga_id'], tmp['newest_epi'], tmp['newest_epi_name'] = manga_id, f.result()[0], f.result()[1]
+                    socketio.emit('response', tmp)
+                else:
+                    continue
+
+        complete_info = dict()
+        complete_info['manga_id'] = manga_id
+        complete_info['completed'] = True
+        socketio.emit('complete_info', complete_info)
 
         manga_library[manga_id]['completed'] = True
+
         print(manga_library)
         # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
         # entry(manga_id, start, end, manga_library)
 
-        with open('./manga_library.json', 'w') as f:
-            json.dump(manga_library, f)
+        # with open('./manga_library.json', 'w') as f:
+        #     jsontmp = json.dumps(manga_library)
+        #     f.write(jsontmp)
+
+        with open('./manga_library.json', 'w', encoding= 'utf8') as f:
+            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii= False)
+            f.write(json_tmp)
+
+
     else:
         print('No need to download.')
 
