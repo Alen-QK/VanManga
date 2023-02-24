@@ -162,7 +162,7 @@ class DogeLibrary(Resource):
 
         response = [item for item in manga_library.values()]
 
-        return response
+        return response, 200
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
