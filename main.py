@@ -152,10 +152,15 @@ class DogePost(Resource):
 
         return 'submitted', 200
 
-# class DogeLibrary()
+class DogeLibrary(Resource):
+    def post(self):
+        global manga_library
+
+        return manga_library
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
+api.add_resource(DogeLibrary, '/api/dogemanga/lib')
 
 
 if __name__ == '__main__':
