@@ -48,16 +48,13 @@ def boot_scanning(manga_library):
 
         if manga['completed'] == False:
             Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
-            print('111111')
         else:
-            print('222222')
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
             history_length = manga['last_epi']
 
             if history_length < current_manga_length:
                 Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
-
 
 def dogemangaTask():
     global manga_library
@@ -78,6 +75,7 @@ def confirm_comic_task(manga_id):
     history_length = target_manga['last_epi']
 
     if history_length < current_manga_length:
+        print(f'\n{manga_id} 已经开始下载..........\n')
         start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
@@ -215,7 +213,7 @@ class DogeLibrary(Resource):
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
-# boot_scanning(manga_library)
+boot_scanning(manga_library)
 
 if __name__ == '__main__':
     scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'cron', hour='1', minute='30')

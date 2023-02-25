@@ -27,8 +27,10 @@ class TaskQueue(Queue):
             task = current_task['target']
             # 添加执行中
             doing.append(current_task)
+            print(f"\n{current_task['manga_id']} add to the queue\n")
             # 执行
             task(current_task['manga_id'])
             self.task_done()
             # 移除执行中
             doing.remove(current_task)
+            print(f"\n{current_task['manga_id']} removed from queue\n")

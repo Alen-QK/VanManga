@@ -31,6 +31,7 @@ class DGmanga(MangaSite):
         return len(tab_content)
 
     def generate_chapters_array(self, start, end):
+        # todo 传参路径
         self.target_folder_path = f'./{self.manga_id}'
         path_exists_make(self.target_folder_path)
 
