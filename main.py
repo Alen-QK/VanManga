@@ -7,22 +7,20 @@ import ast
 import concurrent.futures
 
 from collections import defaultdict
-from threading import Thread
 
 from modules.ua_producer import ua_producer
 from modules.make_manga_object import make_manga_object
+from modules.TaskQueue import TaskQueue
 
 from flask import Flask
 # from waitress import serve
 from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
-from flask_restful import Api, Resource, reqparse, abort, request
+from flask_restful import Api, Resource, reqparse, request
 
 from bs4 import BeautifulSoup
 
 from modules.DGmanga import DGmanga
-
-
 
 app = Flask(__name__)
 api = Api(app)
@@ -31,8 +29,10 @@ scheduler = APScheduler()
 
 # post format
 confirm_post_args = reqparse.RequestParser()
-confirm_post_args.add_argument('manga_object', type= str, help= 'manga_object of the manga is required', required= True)
+confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
 
+Q = TaskQueue(num_workers= 1)
+Q.join()
 manga_library = json.load(open('./manga_library.json', encoding= 'utf-8'))
 print(manga_library)
 # 简单的task锁，如果遇到block，则直接加锁，加锁状态下需要检查的下载动作都将暂缓执行
@@ -42,8 +42,27 @@ g_error_count = 0
 # block后基础等待时间
 g_wait_time = 40
 
-# def dogemangaTask():
-#     entry('UsprF-z2')
+def boot_scanning(manga_library):
+
+    for manga in manga_library.values():
+
+        if manga['completed'] == False:
+            Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
+            print('111111')
+        else:
+            print('222222')
+            DG = DGmanga(manga['manga_id'])
+            current_manga_length = DG.check_manga_length()
+            history_length = manga['last_epi']
+
+            if history_length < current_manga_length:
+                Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
+
+
+def dogemangaTask():
+    global manga_library
+
+    boot_scanning(manga_library)
 
 
 # 实际上后台下载选定漫画的task
@@ -57,10 +76,9 @@ def confirm_comic_task(manga_id):
     current_manga_length = DG.check_manga_length()
     target_manga = manga_library[manga_id]
     history_length = target_manga['last_epi']
-    print(manga_library)
 
-    if history_length < current_manga_length - 1:
-        start = 0 if history_length == 0 else history_length + 1
+    if history_length < current_manga_length:
+        start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
         chapters_array = DG.generate_chapters_array(start, end)
@@ -72,8 +90,9 @@ def confirm_comic_task(manga_id):
                 # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓 todo
                 while g_error_flag:
                     print('线程停止中')
-
-                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, history_length, idx)
+                # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
+                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, g_error_flag, g_error_count,
+                                         g_wait_time, start, idx)
                 finish.append(future)
                 time.sleep(2 + int(random.random() * 3))
 
@@ -95,17 +114,10 @@ def confirm_comic_task(manga_id):
         manga_library[manga_id]['completed'] = True
 
         print(manga_library)
-        # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
-        # entry(manga_id, start, end, manga_library)
-
-        # with open('./manga_library.json', 'w') as f:
-        #     jsontmp = json.dumps(manga_library)
-        #     f.write(jsontmp)
 
         with open('./manga_library.json', 'w', encoding= 'utf8') as f:
-            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii= False)
+            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii=False)
             f.write(json_tmp)
-
 
     else:
         print('No need to download.')
@@ -172,17 +184,24 @@ class DogePost(Resource):
 
     def post(self):
         global manga_library
+        global Q
         args = confirm_post_args.parse_args()
         manga_object = ast.literal_eval(args['manga_object'])
         manga_id = manga_object['manga_id']
 
         if manga_id not in manga_library:
             manga_library[manga_id] = make_manga_object(manga_object)
-        # print(manga_library[manga_id].get_dgmanga_info())
+
         # 后台工作交由多线程执行，先返回200
-        Thread(target= confirm_comic_task, args= [manga_id]).start()
+        # Thread(target= confirm_comic_task, args= [manga_id]).start()
+        Q.add_task(target= confirm_comic_task, manga_id= manga_id)
+
+        with open('./manga_library.json', 'w', encoding= 'utf8') as f:
+            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii= False)
+            f.write(json_tmp)
 
         return {'data': 'submitted', 'code': 200}
+
 
 class DogeLibrary(Resource):
     def post(self):
@@ -192,14 +211,15 @@ class DogeLibrary(Resource):
 
         return {'data': r, 'code': 200}
 
+
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
-
+# boot_scanning(manga_library)
 
 if __name__ == '__main__':
-    # scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'interval', seconds= 10)
-    # scheduler.start()
+    scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'cron', hour='1', minute='30')
+    scheduler.start()
     # serve(app, host='127.0.0.1', port= 5000)
     # app.run(host='127.0.0.1', port= 5000, debug= True)
-    socketio.run(app, host='127.0.0.1', port= 5000, debug= True)
+    socketio.run(app, host= '127.0.0.1', port= 5000, debug= True)

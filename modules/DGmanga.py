@@ -17,7 +17,7 @@ class DGmanga(MangaSite):
         self.GEF = False
         self.GEC = 0
         self.GWT = 0
-        self.Current_idx = 0
+        self.Current_idx = float('-inf')
     def check_manga_length(self):
         headers = {'User-Agent': ua_producer()}
         target_link = f'https://dogemanga.com/m/{self.manga_id}?l=zh'
@@ -37,7 +37,7 @@ class DGmanga(MangaSite):
         session = requests.Session()
         chapters_array = self.comic_main_page(self.manga_id, session)
         chapters_array.reverse()
-        chapters_array = chapters_array[start:end]
+        chapters_array = chapters_array[start - 1:end]
 
         return chapters_array
 
@@ -74,7 +74,7 @@ class DGmanga(MangaSite):
         chapter_title = chapter[0]
         chapter_link = chapter[1]
 
-        print(chapter_title)
+        print(f"\n{chapter_title} downloading begin........\n")
         # 找出‘第 # 页’
         # findPage = re.compile('Page\s\d+$')
         findPage = re.compile('第\s\d+\s[页|頁]')
@@ -89,10 +89,10 @@ class DGmanga(MangaSite):
                 self.GWT += 1
             # 计算等待时间
             wait_time = self.GWT * self.GEC + int(random.random() * 10)
-            print('%s: 章节抓取遇到429错误，将开始等待%d s' % (chapter_title, wait_time))
+            print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
             time.sleep(wait_time)
             self.GEF = False
-            print('重新开始抓取')
+            print('\n重新开始抓取\n')
             self.scrape_each_chapter(chapter, manga_library)
         else:
             soup = BeautifulSoup(response.text, 'lxml')
@@ -114,13 +114,13 @@ class DGmanga(MangaSite):
                 manga_library[self.manga_id]['last_epi'] = self.Current_idx + his_length
                 manga_library[self.manga_id]['last_epi_name'] = chapter_title
 
-                print('%s is downloaded' % chapter_title)
+                print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
 
                 return (self.Current_idx + his_length, chapter_title, True)
             else:
                 # manga_library[self.manga_id]['last_epi_name'] = chapter_title
 
-                print('%s is downloaded' % chapter_title)
+                print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
 
                 return (idx, chapter_title, False)
 
@@ -132,7 +132,7 @@ class DGmanga(MangaSite):
 
         for img in img_array:
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
-            while self.GEC:
+            while self.GEF:
                 print('page线程停止中')
 
             img_title = img[0]
@@ -147,10 +147,10 @@ class DGmanga(MangaSite):
                     self.GEC += 1
 
                 wait_time = self.GWT * self.GEC + int(random.random() * 10)
-                print('%s: 单页抓取遇到429错误，将开始等待%d s' % (img_title, wait_time))
+                print('\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (img_title, wait_time))
                 time.sleep(wait_time)
                 self.GEF = False
-                print('重新开始抓取')
+                print('\n重新开始抓取\n')
                 self.download_img(chapter_title, chapter_title, img_array)
             else:
                 target_path = folder_path + ('/%s' % img_title) + '.jpg'
