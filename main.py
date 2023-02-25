@@ -1,3 +1,4 @@
+import threading
 import time
 import random
 import requests
@@ -31,30 +32,22 @@ scheduler = APScheduler()
 confirm_post_args = reqparse.RequestParser()
 confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
 
-Q = TaskQueue(num_workers= 1)
-Q.join()
-manga_library = json.load(open('./manga_library.json', encoding= 'utf-8'))
-print(manga_library)
+Current_download = ''
+Q = None
+manga_library = json.load(open('./manga_library.json', encoding='utf-8'))
+Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
+# print(manga_library)
 # 简单的task锁，如果遇到block，则直接加锁，加锁状态下需要检查的下载动作都将暂缓执行
-g_error_flag = False
+# g_error_flag = False
 # 错误基数初始化，用于计算等待时间，当各个访问步骤遭遇block时，自增，上限为5
-g_error_count = 0
+# g_error_count = 0
 # block后基础等待时间
-g_wait_time = 40
+# g_wait_time = 40
 
-def boot_scanning(manga_library):
 
-    for manga in manga_library.values():
-
-        if manga['completed'] == False:
-            Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
-        else:
-            DG = DGmanga(manga['manga_id'])
-            current_manga_length = DG.check_manga_length()
-            history_length = manga['last_epi']
-
-            if history_length < current_manga_length:
-                Q.add_task(target= confirm_comic_task, manga_id= manga['manga_id'])
+@app.route("/")
+def hello():
+    return "Hello World!"
 
 def dogemangaTask():
     global manga_library
@@ -62,20 +55,44 @@ def dogemangaTask():
     boot_scanning(manga_library)
 
 
+def boot_scanning(manga_library):
+    print(111111)
+    for manga in manga_library.values():
+        print(manga)
+
+        if manga['completed'] == False:
+            Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
+            print(f"\n{manga['manga_id']} add to the queue\n")
+            # confirm_comic_task(manga['manga_id'])
+        else:
+            DG = DGmanga(manga['manga_id'])
+            current_manga_length = DG.check_manga_length()
+            history_length = manga['last_epi']
+
+            if history_length < current_manga_length:
+                Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
+                # confirm_comic_task(manga['manga_id'])
+                print(f"\n{manga['manga_id']} add to the queue\n")
+
+
 # 实际上后台下载选定漫画的task
 def confirm_comic_task(manga_id):
     global manga_library
-    global g_error_flag
-    global g_error_count
-    global g_wait_time
+    global Error_dict
+    global Current_download
+    # global g_error_flag
+    # global g_error_count
+    # global g_wait_time
 
     DG = DGmanga(manga_id)
     current_manga_length = DG.check_manga_length()
     target_manga = manga_library[manga_id]
     history_length = target_manga['last_epi']
 
-    if history_length < current_manga_length:
+    if history_length <= current_manga_length:
+        Current_download = manga_id
         print(f'\n{manga_id} 已经开始下载..........\n')
+        socketio.emit('downloading_info', manga_id)
         start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
@@ -86,11 +103,10 @@ def confirm_comic_task(manga_id):
             # executor.map(chapter_comic_page, chapters_array)
             for idx, chapter in enumerate(chapters_array):
                 # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓 todo
-                while g_error_flag:
+                while Error_dict['g_error_flag']:
                     print('线程停止中')
                 # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
-                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, g_error_flag, g_error_count,
-                                         g_wait_time, start, idx)
+                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx)
                 finish.append(future)
                 time.sleep(2 + int(random.random() * 3))
 
@@ -108,18 +124,28 @@ def confirm_comic_task(manga_id):
         complete_info['manga_id'] = manga_id
         complete_info['completed'] = True
         socketio.emit('complete_info', complete_info)
+        Current_download = ''
 
         manga_library[manga_id]['completed'] = True
 
         print(manga_library)
 
-        with open('./manga_library.json', 'w', encoding= 'utf8') as f:
-            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii=False)
+        with open('./manga_library.json', 'w', encoding='utf8') as f:
+            json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
     else:
         print('No need to download.')
 
+@app.before_first_request
+def before_first_request():
+    global Q
+    Q = TaskQueue(num_workers=1)
+    Q.join()
+    boot_scanning(manga_library)
+    scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'cron', hour='1', minute='30')
+    scheduler.start()
+    print(f"########### Restarted, first request @ ############")
 
 class DogeSearch(Resource):
     def get(self):
@@ -135,13 +161,13 @@ class DogeSearch(Resource):
 
         headers = {'User-Agent': ua_producer()}
         url = f'https://dogemanga.com/?q={search_name}&l=zh'
-        response = requests.get(url, headers= headers)
+        response = requests.get(url, headers=headers)
         soup = BeautifulSoup(response.text, 'lxml')
 
-        site_scroll_row = soup.find('div', class_= 'site-scroll__row')
+        site_scroll_row = soup.find('div', class_='site-scroll__row')
 
         try:
-            site_cards = site_scroll_row.find_all('div', class_= 'site-card')
+            site_cards = site_scroll_row.find_all('div', class_='site-card')
             # 限制只返回前十个结果
             max_amount = min(10, len(site_cards))
             results = list()
@@ -151,11 +177,11 @@ class DogeSearch(Resource):
                 manga_dict = defaultdict()
                 card = site_cards[i]
                 manga_id = card['data-manga-id']
-                manga_name = card.find('h5', class_= 'card-title').text.replace('\n', '')
-                artist_name = card.find('h6', class_= 'card-subtitle').text.replace('\n', '')
-                newest_epi = card.find('li', class_= 'list-group-item').text.replace('\n', '')
-                thumbnail_link = card.find('img', class_= 'card-img-top')['src']
-                manga_thumbnail = session.get(thumbnail_link, headers= headers).content
+                manga_name = card.find('h5', class_='card-title').text.replace('\n', '')
+                artist_name = card.find('h6', class_='card-subtitle').text.replace('\n', '')
+                newest_epi = card.find('li', class_='list-group-item').text.replace('\n', '')
+                thumbnail_link = card.find('img', class_='card-img-top')['src']
+                manga_thumbnail = session.get(thumbnail_link, headers=headers).content
                 encoded_thumbnail = (base64.b64encode(manga_thumbnail)).decode('utf-8')
 
                 manga_dict['manga_name'] = manga_name
@@ -192,10 +218,10 @@ class DogePost(Resource):
 
         # 后台工作交由多线程执行，先返回200
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
-        Q.add_task(target= confirm_comic_task, manga_id= manga_id)
+        Q.add_task(target=confirm_comic_task, manga_id=manga_id)
 
-        with open('./manga_library.json', 'w', encoding= 'utf8') as f:
-            json_tmp = json.dumps(manga_library, indent= 4, ensure_ascii= False)
+        with open('./manga_library.json', 'w', encoding='utf8') as f:
+            json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
         return {'data': 'submitted', 'code': 200}
@@ -209,15 +235,44 @@ class DogeLibrary(Resource):
 
         return {'data': r, 'code': 200}
 
+class DogeCurDownloading(Resource):
+
+    def get(self):
+        global Current_download
+
+        return {'data': Current_download, 'code': 200}
+
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
-boot_scanning(manga_library)
+api.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
+
+def start_runner():
+    def start_loop():
+        print()
+        not_started = True
+        while not_started:
+            print('In start loop')
+            try:
+                r = requests.get('http://127.0.0.1:5000/')
+                if r.status_code == 200:
+                    print('Server started, quiting start_loop')
+                    not_started = False
+                print(r.status_code)
+
+            except:
+                print('Server not yet started')
+            time.sleep(1)
+
+    print('Started runner')
+    thread = threading.Thread(target=start_loop)
+    thread.start()
+
 
 if __name__ == '__main__':
-    scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'cron', hour='1', minute='30')
-    scheduler.start()
+
     # serve(app, host='127.0.0.1', port= 5000)
     # app.run(host='127.0.0.1', port= 5000, debug= True)
-    socketio.run(app, host= '127.0.0.1', port= 5000, debug= True)
+    start_runner()
+    socketio.run(app, host='127.0.0.1', port=5000, debug= True, use_reloader= False, allow_unsafe_werkzeug=True)

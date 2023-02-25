@@ -4,6 +4,7 @@ import time
 
 import requests
 from bs4 import BeautifulSoup
+from threading import current_thread
 
 from modules.MangaSite import MangaSite
 from modules.ua_producer import ua_producer
@@ -14,9 +15,9 @@ class DGmanga(MangaSite):
     def __init__(self, manga_id):
         self.manga_id = manga_id
         self.target_folder_path = ''
-        self.GEF = False
-        self.GEC = 0
-        self.GWT = 0
+        # self.GEF = False
+        # self.GEC = 0
+        # self.GWT = 0
         self.Current_idx = float('-inf')
     def check_manga_length(self):
         headers = {'User-Agent': ua_producer()}
@@ -67,10 +68,10 @@ class DGmanga(MangaSite):
 
         return chapters_array
 
-    def scrape_each_chapter(self, chapter, manga_library, g_error_flag, g_error_count, g_wait_time, his_length, idx):
-        self.GEF = g_error_flag
-        self.GEC = g_error_count
-        self.GWT = g_wait_time
+    def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx):
+        # self.GEF = g_error_flag
+        # self.GEC = g_error_count
+        # self.GWT = g_wait_time
 
         chapter_title = chapter[0]
         chapter_link = chapter[1]
@@ -84,17 +85,17 @@ class DGmanga(MangaSite):
         response = requests.get(chapter_link, headers=headers)
 
         if response.status_code == 429:
-            self.GEF = True
+            Error_dict['g_error_flag'] = True
             # 设定error_count的最大上限为5
-            if self.GEC < 6:
-                self.GWT += 1
+            if Error_dict['g_error_count'] < 6:
+                Error_dict['g_error_count'] += 1
             # 计算等待时间
-            wait_time = self.GWT * self.GEC + int(random.random() * 10)
+            wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
             print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
             time.sleep(wait_time)
-            self.GEF = False
+            Error_dict['g_error_flag'] = False
             print('\n重新开始抓取\n')
-            self.scrape_each_chapter(chapter, manga_library)
+            self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx)
         else:
             soup = BeautifulSoup(response.text, 'lxml')
             site_reader = soup.find('div', class_='site-reader')
@@ -108,7 +109,8 @@ class DGmanga(MangaSite):
                 img_array.append([img_page[0], img_id[-1]])
 
             session = requests.Session()
-            self.download_img(chapter_title, img_array, session)
+            print(f'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n {chapter_title} {current_thread().getName()}')
+            self.download_img(chapter_title, img_array, session, Error_dict)
             # td
             if self.Current_idx < idx:
                 self.Current_idx = idx
@@ -125,7 +127,7 @@ class DGmanga(MangaSite):
 
                 return (idx, chapter_title, False)
 
-    def download_img(self, chapter_title, img_array, session):
+    def download_img(self, chapter_title, img_array, session, Error_dict):
 
         folder_path = self.target_folder_path + f'/{chapter_title}'
         path_exists_make(folder_path)
@@ -133,7 +135,7 @@ class DGmanga(MangaSite):
 
         for img in img_array:
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
-            while self.GEF:
+            while Error_dict['g_error_flag']:
                 print('page线程停止中')
 
             img_title = img[0]
@@ -142,17 +144,17 @@ class DGmanga(MangaSite):
             response = session.get(target_link, headers=headers)
 
             if response.status_code == 429:
-                self.GEF = True
+                Error_dict['g_error_flag'] = True
 
-                if self.GEC < 6:
-                    self.GEC += 1
+                if Error_dict['g_error_count'] < 6:
+                    Error_dict['g_error_count'] += 1
 
-                wait_time = self.GWT * self.GEC + int(random.random() * 10)
+                wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
                 print('\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (img_title, wait_time))
                 time.sleep(wait_time)
-                self.GEF = False
+                Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
-                self.download_img(chapter_title, chapter_title, img_array)
+                self.download_img(chapter_title, img_array, session, Error_dict)
             else:
                 target_path = folder_path + ('/%s' % img_title) + '.jpg'
 
