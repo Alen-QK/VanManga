@@ -2,6 +2,9 @@ import abc
 
 
 class MangaSite(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def search_manga(self, search_name):
+        pass
 
     @abc.abstractmethod
     def check_manga_length(self):

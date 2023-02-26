@@ -2,14 +2,10 @@ import threading
 import time
 import random
 import requests
-import base64
 import json
 import ast
 import concurrent.futures
 
-from collections import defaultdict
-
-from modules.ua_producer import ua_producer
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 
@@ -17,8 +13,6 @@ from flask import Flask
 from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
-
-from bs4 import BeautifulSoup
 
 from modules.DGmanga import DGmanga
 
@@ -53,7 +47,7 @@ def dogemangaTask():
 
 def boot_scanning(manga_library):
     for manga in manga_library.values():
-        print(manga)
+        # print(manga)
 
         if manga['completed'] == False:
             Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
@@ -61,6 +55,10 @@ def boot_scanning(manga_library):
         else:
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
+
+            if current_manga_length == 501:
+                return 'Might meet human check, shutdown the task.'
+
             history_length = manga['last_epi']
 
             if history_length < current_manga_length:
@@ -76,20 +74,31 @@ def confirm_comic_task(manga_id):
 
     DG = DGmanga(manga_id)
     current_manga_length = DG.check_manga_length()
+
+    if current_manga_length == 501:
+        return 'Might meet human check, shutdown the task.'
+
     target_manga = manga_library[manga_id]
     history_length = target_manga['last_epi']
 
     if history_length <= current_manga_length:
         Current_download = manga_id
         print(f'\n{manga_id} 已经开始下载..........\n')
+
         socketio.emit('downloading_info', manga_id)
+
         start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
         chapters_array = DG.generate_chapters_array(start, end)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        if chapters_array == 501:
+            return 'Might meet human check, shutdown the task.'
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+
             finish = list()
+
             for idx, chapter in enumerate(chapters_array):
                 # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓
                 while Error_dict['g_error_flag']:
@@ -102,6 +111,10 @@ def confirm_comic_task(manga_id):
             for f in concurrent.futures.as_completed(finish):
                 tmp = dict()
                 res = f.result()
+
+                if res == 502:
+                    return "Meet unknown scrape error, maybe scrape_each_chapter can't scrape some specific tag from " \
+                           "page."
 
                 if res[2]:
                     tmp['manga_id'], tmp['newest_epi'], tmp['newest_epi_name'] = manga_id, f.result()[0], f.result()[1]
@@ -117,7 +130,7 @@ def confirm_comic_task(manga_id):
 
         manga_library[manga_id]['completed'] = True
 
-        print(manga_library)
+        # print(manga_library)
 
         with open('./manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -131,8 +144,8 @@ def confirm_comic_task(manga_id):
 @app.before_first_request
 def before_first_request():
     """
-    init TaskQueue to make sure Q run under the Flask context, for verify, you can print current thread of this
-    function (won't mainThread)
+    init TaskQueue to make sure Q run under the Flask context, it works for socketio connection maintaining,
+    for verify, you can print current thread of this function (won't mainThread)
     """
     global Q
     Q = TaskQueue(num_workers=1)
@@ -156,50 +169,21 @@ class DogeSearch(Resource):
 
             return r
 
-        headers = {'User-Agent': ua_producer()}
-        url = f'https://dogemanga.com/?q={search_name}&l=zh'
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.text, 'lxml')
+        DG = DGmanga('tmp')
 
-        site_scroll_row = soup.find('div', class_='site-scroll__row')
+        results = DG.search_manga(search_name)
 
-        try:
-            site_cards = site_scroll_row.find_all('div', class_='site-card')
-            # 限制只返回前十个结果
-            max_amount = min(10, len(site_cards))
-            results = list()
-            session = requests.Session()
-
-            for i in range(max_amount):
-                manga_dict = defaultdict()
-                card = site_cards[i]
-                manga_id = card['data-manga-id']
-                manga_name = card.find('h5', class_='card-title').text.replace('\n', '')
-                artist_name = card.find('h6', class_='card-subtitle').text.replace('\n', '')
-                newest_epi = card.find('li', class_='list-group-item').text.replace('\n', '')
-                thumbnail_link = card.find('img', class_='card-img-top')['src']
-                manga_thumbnail = session.get(thumbnail_link, headers=headers).content
-                encoded_thumbnail = (base64.b64encode(manga_thumbnail)).decode('utf-8')
-
-                manga_dict['manga_name'] = manga_name
-                manga_dict['manga_id'] = manga_id
-                manga_dict['artist_name'] = artist_name
-                manga_dict['newest_epi'] = newest_epi
-                manga_dict['thumbnail'] = encoded_thumbnail
-
-                results.append(manga_dict)
-
-            r['code'] = 200
-            r['data'] = results
-            return r
-
-        except:
-
+        if results == 457:
             r['code'] = 457
             r['data'] = 'No manga searched.'
 
             return r
 
+        else:
+            r['code'] = 200
+            r['data'] = results
+
+            return r
 
 class DogePost(Resource):
 

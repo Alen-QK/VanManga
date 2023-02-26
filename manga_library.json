@@ -18,5 +18,15 @@
         "last_epi_name": "第3话",
         "completed": true,
         "add_date": 1677233039.593329
+    },
+    "JqGkxL2u": {
+        "manga_name": "zzx",
+        "manga_id": "JqGkxL2u",
+        "artist_name": "wzl",
+        "thumbnail": "None",
+        "last_epi": 11,
+        "last_epi_name": "第11回",
+        "completed": true,
+        "add_date": 1677376440.296535
     }
 }
