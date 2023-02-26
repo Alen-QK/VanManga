@@ -9,14 +9,16 @@ import concurrent.futures
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 
-from flask import Flask
+from flask import Flask, redirect
 from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
+from flask_cors import CORS
 
 from modules.DGmanga import DGmanga
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder= 'frontend/static', template_folder= 'frontend/static/templates')
+CORS(app, expose_headers=['Content-Disposition'])
 api = Api(app)
 socketio = SocketIO(app, cors_allowed_origins='*')
 scheduler = APScheduler()
@@ -34,10 +36,24 @@ Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
 # print(manga_library)
 
 
-@app.route("/")
+@app.route("/init")
 def hello():
     return "Hello World!"
 
+@app.route('/')
+def go_to_mainpage():
+    return redirect('http://localhost:5000/mainpage/searchpage')
+
+@app.route('/<path:fallback>')
+def fallback(fallback):
+
+    if fallback.startswith('css/') or fallback.startswith('js/') or fallback.startswith('img/') \
+            or fallback == 'favicon.ico' or fallback.startswith('fonts/'):
+        return app.send_static_file(fallback)
+    elif fallback.startswith('mainpage/'):
+        return app.send_static_file('templates/index.html')
+    else:
+        return app.send_static_file('templates/index.html')
 
 def dogemangaTask():
     global manga_library
@@ -239,7 +255,7 @@ def start_runner():
         while not_started:
             print('In start loop')
             try:
-                r = requests.get('http://127.0.0.1:5000/')
+                r = requests.get('http://127.0.0.1:5000/init')
                 if r.status_code == 200:
                     print('Server started, quiting start_loop')
                     not_started = False
