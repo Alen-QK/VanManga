@@ -164,7 +164,7 @@ class DogeSearch(Resource):
         r = dict()
 
         if search_name == '':
-            r['code'] = 457
+            r['code'] = 456
             r['data'] = 'manga_name should not be empty!'
 
             return r
