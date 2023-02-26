@@ -14,7 +14,6 @@ from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 
 from flask import Flask
-# from waitress import serve
 from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
@@ -36,18 +35,15 @@ Current_download = ''
 Q = None
 manga_library = json.load(open('./manga_library.json', encoding='utf-8'))
 Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
+
+
 # print(manga_library)
-# 简单的task锁，如果遇到block，则直接加锁，加锁状态下需要检查的下载动作都将暂缓执行
-# g_error_flag = False
-# 错误基数初始化，用于计算等待时间，当各个访问步骤遭遇block时，自增，上限为5
-# g_error_count = 0
-# block后基础等待时间
-# g_wait_time = 40
 
 
 @app.route("/")
 def hello():
     return "Hello World!"
+
 
 def dogemangaTask():
     global manga_library
@@ -56,14 +52,12 @@ def dogemangaTask():
 
 
 def boot_scanning(manga_library):
-    print(111111)
     for manga in manga_library.values():
         print(manga)
 
         if manga['completed'] == False:
             Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
             print(f"\n{manga['manga_id']} add to the queue\n")
-            # confirm_comic_task(manga['manga_id'])
         else:
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
@@ -71,7 +65,6 @@ def boot_scanning(manga_library):
 
             if history_length < current_manga_length:
                 Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
-                # confirm_comic_task(manga['manga_id'])
                 print(f"\n{manga['manga_id']} add to the queue\n")
 
 
@@ -80,9 +73,6 @@ def confirm_comic_task(manga_id):
     global manga_library
     global Error_dict
     global Current_download
-    # global g_error_flag
-    # global g_error_count
-    # global g_wait_time
 
     DG = DGmanga(manga_id)
     current_manga_length = DG.check_manga_length()
@@ -98,11 +88,10 @@ def confirm_comic_task(manga_id):
 
         chapters_array = DG.generate_chapters_array(start, end)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers= 3) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
             finish = list()
-            # executor.map(chapter_comic_page, chapters_array)
             for idx, chapter in enumerate(chapters_array):
-                # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓 todo
+                # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓
                 while Error_dict['g_error_flag']:
                     print('线程停止中')
                 # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
@@ -137,15 +126,23 @@ def confirm_comic_task(manga_id):
     else:
         print('No need to download.')
 
+
+# call entry function that boot scanning after first self server call
 @app.before_first_request
 def before_first_request():
+    """
+    init TaskQueue to make sure Q run under the Flask context, for verify, you can print current thread of this
+    function (won't mainThread)
+    """
     global Q
     Q = TaskQueue(num_workers=1)
     Q.join()
     boot_scanning(manga_library)
-    scheduler.add_job(id= 'Dogemanga task', func= dogemangaTask, trigger= 'cron', hour='1', minute='30')
+    # init daily scheduled mission
+    scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
     scheduler.start()
     print(f"########### Restarted, first request @ ############")
+
 
 class DogeSearch(Resource):
     def get(self):
@@ -235,6 +232,7 @@ class DogeLibrary(Resource):
 
         return {'data': r, 'code': 200}
 
+
 class DogeCurDownloading(Resource):
 
     def get(self):
@@ -248,6 +246,8 @@ api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
 api.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
 
+
+# loop of self server call, run on mainThread, if call success, will terminate thread
 def start_runner():
     def start_loop():
         print()
@@ -271,8 +271,12 @@ def start_runner():
 
 
 if __name__ == '__main__':
-
     # serve(app, host='127.0.0.1', port= 5000)
     # app.run(host='127.0.0.1', port= 5000, debug= True)
     start_runner()
-    socketio.run(app, host='127.0.0.1', port=5000, debug= True, use_reloader= False, allow_unsafe_werkzeug=True)
+    '''
+    must turn off the use_reloader and make allow_unsafe_werkzeug to true, 
+    because if run under werkzeug reload env, werkzeug will run other process for checking modification on code,
+    it means server will boot twice, due to the function of crawler, it will break thread safe and bring it to chaos :(
+    '''
+    socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)

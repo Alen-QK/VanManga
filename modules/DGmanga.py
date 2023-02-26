@@ -15,9 +15,6 @@ class DGmanga(MangaSite):
     def __init__(self, manga_id):
         self.manga_id = manga_id
         self.target_folder_path = ''
-        # self.GEF = False
-        # self.GEC = 0
-        # self.GWT = 0
         self.Current_idx = float('-inf')
     def check_manga_length(self):
         headers = {'User-Agent': ua_producer()}
@@ -69,9 +66,6 @@ class DGmanga(MangaSite):
         return chapters_array
 
     def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx):
-        # self.GEF = g_error_flag
-        # self.GEC = g_error_count
-        # self.GWT = g_wait_time
 
         chapter_title = chapter[0]
         chapter_link = chapter[1]
@@ -91,10 +85,12 @@ class DGmanga(MangaSite):
                 Error_dict['g_error_count'] += 1
             # 计算等待时间
             wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
+
             print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
             time.sleep(wait_time)
             Error_dict['g_error_flag'] = False
             print('\n重新开始抓取\n')
+
             self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx)
         else:
             soup = BeautifulSoup(response.text, 'lxml')
@@ -109,7 +105,7 @@ class DGmanga(MangaSite):
                 img_array.append([img_page[0], img_id[-1]])
 
             session = requests.Session()
-            print(f'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n {chapter_title} {current_thread().getName()}')
+            print(f'\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}')
             self.download_img(chapter_title, img_array, session, Error_dict)
             # td
             if self.Current_idx < idx:
@@ -154,6 +150,7 @@ class DGmanga(MangaSite):
                 time.sleep(wait_time)
                 Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
+
                 self.download_img(chapter_title, img_array, session, Error_dict)
             else:
                 target_path = folder_path + ('/%s' % img_title) + '.jpg'
