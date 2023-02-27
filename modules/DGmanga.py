@@ -73,9 +73,9 @@ class DGmanga(MangaSite):
         except:
             return 501
 
-    def generate_chapters_array(self, start, end):
+    def generate_chapters_array(self, start, end, download_root_folder_path, manga_name):
         # todo 传参路径
-        self.target_folder_path = f'./{self.manga_id}'
+        self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}'
         path_exists_make(self.target_folder_path)
 
         session = requests.Session()

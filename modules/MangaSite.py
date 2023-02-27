@@ -11,7 +11,7 @@ class MangaSite(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def generate_chapters_array(self, start, end):
+    def generate_chapters_array(self, start, end, download_root_folder_path, manga_name):
         pass
 
     @abc.abstractmethod

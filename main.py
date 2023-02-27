@@ -9,7 +9,7 @@ import concurrent.futures
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 
-from flask import Flask, redirect
+from flask import Flask, redirect, render_template
 from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
@@ -29,20 +29,20 @@ confirm_post_args.add_argument('manga_object', type=str, help='manga_object of t
 
 Current_download = ''
 Q = None
-manga_library = json.load(open('./manga_library.json', encoding='utf-8'))
+manga_library = json.load(open('eng_config/manga_library.json', encoding='utf-8'))
 Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
-
-
+env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
+download_root_folder_path = env_config['download_root_folder_path']
 # print(manga_library)
 
 
-@app.route("/init")
-def hello():
-    return "Hello World!"
+# @app.route("/init")
+# def hello():
+#     return redirect('http://localhost:5000/init')
 
 @app.route('/')
 def go_to_mainpage():
-    return redirect('http://localhost:5000/mainpage/searchpage')
+    return render_template('index.html')
 
 @app.route('/<path:fallback>')
 def fallback(fallback):
@@ -87,6 +87,7 @@ def confirm_comic_task(manga_id):
     global manga_library
     global Error_dict
     global Current_download
+    global download_root_folder_path
 
     DG = DGmanga(manga_id)
     current_manga_length = DG.check_manga_length()
@@ -96,6 +97,7 @@ def confirm_comic_task(manga_id):
 
     target_manga = manga_library[manga_id]
     history_length = target_manga['last_epi']
+    manga_name = target_manga['manga_name']
 
     if history_length <= current_manga_length:
         Current_download = manga_id
@@ -106,7 +108,7 @@ def confirm_comic_task(manga_id):
         start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
-        chapters_array = DG.generate_chapters_array(start, end)
+        chapters_array = DG.generate_chapters_array(start, end, download_root_folder_path, manga_name)
 
         if chapters_array == 501:
             return 'Might meet human check, shutdown the task.'
@@ -148,7 +150,7 @@ def confirm_comic_task(manga_id):
 
         # print(manga_library)
 
-        with open('./manga_library.json', 'w', encoding='utf8') as f:
+        with open('eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
@@ -212,12 +214,14 @@ class DogePost(Resource):
 
         if manga_id not in manga_library:
             manga_library[manga_id] = make_manga_object(manga_object)
+        else:
+            return {'data': 'same id in library, no need to submit', 'code': 410}
 
         # 后台工作交由多线程执行，先返回200
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
         Q.add_task(target=confirm_comic_task, manga_id=manga_id)
 
-        with open('./manga_library.json', 'w', encoding='utf8') as f:
+        with open('eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
@@ -255,7 +259,7 @@ def start_runner():
         while not_started:
             print('In start loop')
             try:
-                r = requests.get('http://127.0.0.1:5000/init')
+                r = requests.get('http://127.0.0.1:5000/mainpage/searchpage')
                 if r.status_code == 200:
                     print('Server started, quiting start_loop')
                     not_started = False
