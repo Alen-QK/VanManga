@@ -9,6 +9,8 @@ cffi==1.15.1
 charset-normalizer==3.0.1
 click==8.1.3
 colorama==0.4.6
+dnspython==2.3.0
+eventlet==0.33.3
 Faker==17.0.0
 Flask==2.2.3
 Flask-APScheduler==1.12.4
@@ -16,6 +18,7 @@ Flask-Cors==3.0.10
 Flask-RESTful==0.3.9
 Flask-SocketIO==5.3.2
 gevent==22.10.2
+gevent-websocket==0.10.1
 greenlet==2.0.2
 h11==0.14.0
 idna==3.4
