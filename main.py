@@ -286,5 +286,5 @@ if __name__ == '__main__':
     because if run under werkzeug reload env, werkzeug will run other process for checking modification on code,
     it means server will boot twice, due to the function of crawler, it will break thread safe and bring it to chaos :(
     '''
-    socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
     # socketio.run(app, host='127.0.0.1', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)
