@@ -1,6 +1,7 @@
 from gevent import monkey
 monkey.patch_all()
 
+import os
 import threading
 import time
 import random
@@ -26,16 +27,24 @@ api = Api(app)
 socketio = SocketIO(app, cors_allowed_origins='*')
 scheduler = APScheduler()
 
+if not os.path.exists('/vanmanga/eng_config/manga_library.json'):
+    manga_library_content = {}
+    os.mknod('/vanmanga/eng_config/manga_library.json')
+
+    with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
+        json_tmp = json.dumps(manga_library_content, indent=4, ensure_ascii=False)
+        f.write(json_tmp)
+
 # post format
 confirm_post_args = reqparse.RequestParser()
 confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
 
 Current_download = ''
 Q = None
-manga_library = json.load(open('eng_config/manga_library.json', encoding='utf-8'))
+manga_library = json.load(open('/vanmanga/eng_config/manga_library.json', encoding='utf-8'))
 Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
-env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
-download_root_folder_path = env_config['download_root_folder_path']
+# env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
+download_root_folder_path = '/downloaded'
 # print(manga_library)
 
 
@@ -62,7 +71,6 @@ def dogemangaTask():
     global manga_library
 
     boot_scanning(manga_library)
-
 
 def boot_scanning(manga_library):
     for manga in manga_library.values():
@@ -153,7 +161,7 @@ def confirm_comic_task(manga_id):
 
         # print(manga_library)
 
-        with open('eng_config/manga_library.json', 'w', encoding='utf8') as f:
+        with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
@@ -224,7 +232,7 @@ class DogePost(Resource):
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
         Q.add_task(target=confirm_comic_task, manga_id=manga_id)
 
-        with open('eng_config/manga_library.json', 'w', encoding='utf8') as f:
+        with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
