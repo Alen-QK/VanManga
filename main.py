@@ -71,6 +71,7 @@ def dogemangaTask():
     global manga_library
     print('\n########## Start Daily Update Task ##########\n')
     boot_scanning(manga_library)
+    print('\n########## Daily Update Task Over ##########\n')
 
 def boot_scanning(manga_library):
     for manga in manga_library.values():
