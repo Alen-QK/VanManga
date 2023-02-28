@@ -69,7 +69,7 @@ def fallback(fallback):
 
 def dogemangaTask():
     global manga_library
-
+    print('\n########## Start Daily Update Task ##########\n')
     boot_scanning(manga_library)
 
 def boot_scanning(manga_library):
