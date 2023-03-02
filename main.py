@@ -129,7 +129,7 @@ def confirm_comic_task(manga_id):
             print('\nMight meet human check, shutdown the task.\n')
             return 'Might meet human check, shutdown the task.'
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
 
             finish = list()
 
@@ -294,7 +294,7 @@ def start_runner():
         while not_started:
             print('In start loop')
             try:
-                r = requests.get('http://127.0.0.1:5000/mainpage/searchpage')
+                r = requests.get('https://aijiangsb.com:7777/mainpage/searchpage')
                 if r.status_code == 200:
                     print('Server started, quiting start_loop')
                     not_started = False
