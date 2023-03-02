@@ -12,6 +12,7 @@ import concurrent.futures
 
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
+from modules.re_zip_downloaded import re_zip_run
 
 from flask import Flask, redirect, render_template
 from flask_socketio import SocketIO, send, emit
@@ -85,6 +86,7 @@ def boot_scanning(manga_library):
             current_manga_length = DG.check_manga_length()
 
             if current_manga_length == 501:
+                print('\nMight meet human check, shutdown the task.\n')
                 return 'Might meet human check, shutdown the task.'
 
             history_length = manga['last_epi']
@@ -105,6 +107,7 @@ def confirm_comic_task(manga_id):
     current_manga_length = DG.check_manga_length()
 
     if current_manga_length == 501:
+        print('\nMight meet human check, shutdown the task.\n')
         return 'Might meet human check, shutdown the task.'
 
     target_manga = manga_library[manga_id]
@@ -123,6 +126,7 @@ def confirm_comic_task(manga_id):
         chapters_array = DG.generate_chapters_array(start, end, download_root_folder_path, manga_name)
 
         if chapters_array == 501:
+            print('\nMight meet human check, shutdown the task.\n')
             return 'Might meet human check, shutdown the task.'
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
@@ -175,6 +179,11 @@ def confirm_comic_task(manga_id):
     else:
         print('No need to download.')
 
+
+def re_zip_task():
+    re_zip_run()
+
+    socketio.emit('scan_completed')
 
 # call entry function that boot scanning after first self server call
 @app.before_first_request
@@ -262,12 +271,20 @@ class DogeCurDownloading(Resource):
 
         return {'data': Current_download, 'code': 200}
 
+class DogeReZip(Resource):
+
+    def get(self):
+
+        threading.Thread(target= re_zip_task).start()
+
+        return {'data': 'Re zip downloaded document begin', 'code': 200}
+
 
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
 api.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
-
+api.add_resource(DogeReZip, '/api/dogemanga/rezip')
 
 # loop of self server call, run on mainThread, if call success, will terminate thread
 def start_runner():

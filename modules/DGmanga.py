@@ -75,7 +75,7 @@ class DGmanga(MangaSite):
 
     def generate_chapters_array(self, start, end, download_root_folder_path, manga_name):
         # todo 传参路径
-        self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}'
+        self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}/{manga_name}'
         path_exists_make(self.target_folder_path)
 
         session = requests.Session()
@@ -144,7 +144,7 @@ class DGmanga(MangaSite):
             Error_dict['g_error_flag'] = False
             print('\n重新开始抓取\n')
 
-            self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx)
+            return self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx)
         else:
             soup = BeautifulSoup(response.text, 'lxml')
 
@@ -193,7 +193,8 @@ class DGmanga(MangaSite):
         for img in img_array:
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
             while Error_dict['g_error_flag']:
-                print('page线程停止中')
+                # print('page线程停止中')
+                True
 
             img_title = img[0]
             img_id = img[1]
@@ -212,7 +213,7 @@ class DGmanga(MangaSite):
                 Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
 
-                self.download_img(chapter_title, img_array, session, Error_dict)
+                return self.download_img(chapter_title, img_array, session, Error_dict)
             else:
                 target_path = folder_path + ('/%s' % img_title) + '.jpg'
 
