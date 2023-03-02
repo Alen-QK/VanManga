@@ -11,7 +11,7 @@ from threading import current_thread
 from modules.MangaSite import MangaSite
 from modules.ua_producer import ua_producer
 from modules.make_path import path_exists_make
-
+from modules.generate_file_path import do_zip_compress
 
 class DGmanga(MangaSite):
     def __init__(self, manga_id):
@@ -75,7 +75,7 @@ class DGmanga(MangaSite):
 
     def generate_chapters_array(self, start, end, download_root_folder_path, manga_name):
         # todo 传参路径
-        self.target_folder_path = f'{download_root_folder_path}/{manga_name}/{self.manga_id}'
+        self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}'
         path_exists_make(self.target_folder_path)
 
         session = requests.Session()
@@ -222,3 +222,5 @@ class DGmanga(MangaSite):
                 print('%s %s downloaded' % (chapter_title, img_title))
 
                 time.sleep(1 + int(random.random() * 1))
+
+        do_zip_compress(folder_path)

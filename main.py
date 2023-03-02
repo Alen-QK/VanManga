@@ -143,6 +143,9 @@ def confirm_comic_task(manga_id):
                 res = f.result()
 
                 if res == 502:
+                    print("Meet unknown scrape error, maybe scrape_each_chapter can't scrape some specific tag from " \
+                           "page.")
+
                     return "Meet unknown scrape error, maybe scrape_each_chapter can't scrape some specific tag from " \
                            "page."
 
@@ -166,6 +169,9 @@ def confirm_comic_task(manga_id):
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
+        sleep_time = (8 + int(random.random() * 5)) * 60
+
+        time.sleep(sleep_time)
     else:
         print('No need to download.')
 
