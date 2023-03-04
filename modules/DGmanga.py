@@ -120,7 +120,7 @@ class DGmanga(MangaSite):
 
     def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx):
 
-        chapter_title = chapter[0]
+        chapter_title = chapter[0].replace(' - ', '&')
         chapter_link = chapter[1]
 
         print(f"\n{chapter_title} downloading begin........\n")
