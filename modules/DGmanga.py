@@ -1,7 +1,8 @@
 import base64
 import random
 import re
-import time
+import gevent
+import gevent
 from collections import defaultdict
 
 import requests
@@ -118,71 +119,73 @@ class DGmanga(MangaSite):
         except:
             return 501
 
-    def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx):
+    def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx, app):
+        with app.app_context():
+            chapter_title = chapter[0].replace(' - ', '&')
+            chapter_link = chapter[1]
 
-        chapter_title = chapter[0].replace(' - ', '&')
-        chapter_link = chapter[1]
+            print(f"\n{chapter_title} downloading begin........\n")
+            # 找出‘第 # 页’
+            # findPage = re.compile('Page\s\d+$')
+            findPage = re.compile('第\s\d+\s[页|頁]')
 
-        print(f"\n{chapter_title} downloading begin........\n")
-        # 找出‘第 # 页’
-        # findPage = re.compile('Page\s\d+$')
-        findPage = re.compile('第\s\d+\s[页|頁]')
+            headers = {'User-Agent': ua_producer()}
+            response = requests.get(chapter_link, headers=headers)
+            # flag = False
 
-        headers = {'User-Agent': ua_producer()}
-        response = requests.get(chapter_link, headers=headers)
+            # if response.status_code == 429:
+            if response.status_code == 429:
+                Error_dict['g_error_flag'] = True
+                # 设定error_count的最大上限为5
+                if Error_dict['g_error_count'] < 6:
+                    Error_dict['g_error_count'] += 1
+                # 计算等待时间
+                wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
 
-        if response.status_code == 429:
-            Error_dict['g_error_flag'] = True
-            # 设定error_count的最大上限为5
-            if Error_dict['g_error_count'] < 6:
-                Error_dict['g_error_count'] += 1
-            # 计算等待时间
-            wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
-
-            print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
-            time.sleep(wait_time)
-            Error_dict['g_error_flag'] = False
-            print('\n重新开始抓取\n')
-
-            return self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx)
-        else:
-            soup = BeautifulSoup(response.text, 'lxml')
-
-            try:
-                site_reader = soup.find('div', class_='site-reader')
-                img_array = list()
-                # 匹配具有‘data-page-image-url’属性的图片tag
-                img_collection = site_reader.find_all('img', attrs={'data-page-image-url': True})
-            except:
-                return 502
-
-            for img_tag in img_collection:
+                print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
+                gevent.sleep(wait_time)
+                Error_dict['g_error_flag'] = False
+                print('\n重新开始抓取\n')
+                # flag = True
+                return self.scrape_each_chapter(chapter, manga_library, Error_dict, his_length, idx, app)
+            else:
+                soup = BeautifulSoup(response.text, 'lxml')
 
                 try:
-                    img_page = findPage.findall(img_tag['alt'])
-                    img_id = img_tag['data-page-image-url'].split('/')
-                    img_array.append([img_page[0], img_id[-1]])
+                    site_reader = soup.find('div', class_='site-reader')
+                    img_array = list()
+                    # 匹配具有‘data-page-image-url’属性的图片tag
+                    img_collection = site_reader.find_all('img', attrs={'data-page-image-url': True})
                 except:
                     return 502
 
-            session = requests.Session()
-            print(f'\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}')
-            self.download_img(chapter_title, img_array, session, Error_dict)
+                for img_tag in img_collection:
 
-            if self.Current_idx < idx:
-                self.Current_idx = idx
-                manga_library[self.manga_id]['last_epi'] = self.Current_idx + his_length
-                manga_library[self.manga_id]['last_epi_name'] = chapter_title
+                    try:
+                        img_page = findPage.findall(img_tag['alt'])
+                        img_id = img_tag['data-page-image-url'].split('/')
+                        img_array.append([img_page[0], img_id[-1]])
+                    except:
+                        return 502
 
-                print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
+                session = requests.Session()
+                print(f'\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}')
+                self.download_img(chapter_title, img_array, session, Error_dict)
 
-                return (self.Current_idx + his_length, chapter_title, True)
-            else:
-                # manga_library[self.manga_id]['last_epi_name'] = chapter_title
+                if self.Current_idx < idx:
+                    self.Current_idx = idx
+                    manga_library[self.manga_id]['last_epi'] = self.Current_idx + his_length
+                    manga_library[self.manga_id]['last_epi_name'] = chapter_title
 
-                print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
+                    print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
 
-                return (idx, chapter_title, False)
+                    return (self.Current_idx + his_length, chapter_title, True)
+                else:
+                    # manga_library[self.manga_id]['last_epi_name'] = chapter_title
+
+                    print('\n%s is downloaded !!!!!!!!\n' % chapter_title)
+
+                    return (idx, chapter_title, False)
 
     def download_img(self, chapter_title, img_array, session, Error_dict):
 
@@ -194,7 +197,7 @@ class DGmanga(MangaSite):
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
             while Error_dict['g_error_flag']:
                 # print('page线程停止中')
-                True
+                gevent.sleep(0)
 
             img_title = img[0]
             img_id = img[1]
@@ -209,7 +212,7 @@ class DGmanga(MangaSite):
 
                 wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
                 print('\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (img_title, wait_time))
-                time.sleep(wait_time)
+                gevent.sleep(wait_time)
                 Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
 
@@ -222,7 +225,7 @@ class DGmanga(MangaSite):
 
                 print('%s %s downloaded' % (chapter_title, img_title))
 
-                time.sleep(1 + int(random.random() * 1))
+                gevent.sleep(1 + int(random.random() * 1))
 
         print(f"########### {chapter_title} 压缩开始！ ############")
         do_zip_compress(folder_path)

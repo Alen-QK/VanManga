@@ -2,6 +2,8 @@ import os
 import zipfile
 import shutil
 import time
+import gevent
+import threading
 
 
 def do_zip_compress(dirpath):
@@ -25,6 +27,7 @@ def do_zip_compress(dirpath):
             writepath = os.path.relpath(filepath, dirpath)
             # print(writepath)
             zip.write(filepath, writepath)
+            gevent.sleep(0)
     zip.close()
 
     shutil.rmtree(dirpath)
@@ -52,9 +55,10 @@ def re_zip_downloaded(dowloadpath):
                         continue
 
                     chapter_path = os.path.join(manga_d_path, chapter_path)
-                    
+
 
                     sign = do_zip_compress(chapter_path)
+                    gevent.sleep(0)
 
                     if sign == False:
                         print(f'内层漫画结构存在异常，需要检查: {manga_path}')
@@ -64,6 +68,7 @@ def re_zip_downloaded(dowloadpath):
         except:
             print(f'外层漫画结构存在问题，需要检查： {manga_path}')
             continue
+
 
 def re_zip_run():
     re_zip_downloaded('/downloaded')

@@ -1,11 +1,17 @@
+import gevent.monkey
+
+gevent.monkey.patch_all()
+
 import os
 import threading
-import time
+import gevent
 import random
 import requests
 import json
 import ast
 import concurrent.futures
+
+from gevent.threadpool import ThreadPool
 
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
@@ -19,15 +25,10 @@ from flask_cors import CORS
 
 from modules.DGmanga import DGmanga
 
-
-
-
-
-
-app = Flask(__name__, static_folder= 'frontend/static', template_folder= 'frontend/static/templates')
+app = Flask(__name__, static_folder='frontend/static', template_folder='frontend/static/templates')
 CORS(app, expose_headers=['Content-Disposition'])
 api = Api(app)
-socketio = SocketIO(app, cors_allowed_origins='*',async_handlers=True)
+socketio = SocketIO(app, cors_allowed_origins='*')
 scheduler = APScheduler()
 
 if not os.path.exists('/vanmanga/eng_config/manga_library.json'):
@@ -48,6 +49,8 @@ manga_library = json.load(open('/vanmanga/eng_config/manga_library.json', encodi
 Error_dict = {'g_error_flag': False, 'g_error_count': 0, 'g_wait_time': 40}
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = '/downloaded'
+
+
 # print(manga_library)
 
 
@@ -59,9 +62,9 @@ download_root_folder_path = '/downloaded'
 def go_to_mainpage():
     return render_template('index.html')
 
+
 @app.route('/<path:fallback>')
 def fallback(fallback):
-
     if fallback.startswith('css/') or fallback.startswith('js/') or fallback.startswith('img/') \
             or fallback == 'favicon.ico' or fallback.startswith('fonts/'):
         return app.send_static_file(fallback)
@@ -70,11 +73,13 @@ def fallback(fallback):
     else:
         return app.send_static_file('templates/index.html')
 
+
 def dogemangaTask():
     global manga_library
     print('\n########## Start Daily Update Task ##########\n')
     boot_scanning(manga_library)
     print('\n########## Daily Update Task Over ##########\n')
+
 
 def boot_scanning(manga_library):
     for manga in manga_library.values():
@@ -131,26 +136,46 @@ def confirm_comic_task(manga_id):
             print('\nMight meet human check, shutdown the task.\n')
             return 'Might meet human check, shutdown the task.'
 
+        # pool = ThreadPool(2)
+        #
+        # for idx, chapter in enumerate(chapters_array):
+        #     pool.spawn(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx, app)
+        #     gevent.sleep(0)
+
+        # if gevent.getcurrent() is not gevent.hub.get_hub().parent:
+        #     pass
+        # else:
+        #     gevent.wait()
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
 
             finish = list()
 
             for idx, chapter in enumerate(chapters_array):
-                # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓
+                # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓, 如果不在这里加上gevent.sleep移交协程control，就会出现死锁，
+                # 导致实际上DG实例已经在sleep后将control交还main，但是main自己相当于锁了自己，至此导致worker等待超时，被kill
                 while Error_dict['g_error_flag']:
-                    True
+                    gevent.sleep(0)
                 # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
-                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx)
+                future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx, app)
+
+
                 finish.append(future)
-                time.sleep(2 + int(random.random() * 3))
+                gevent.sleep(2 + int(random.random() * 3))
+
+            if gevent.getcurrent() is not gevent.hub.get_hub().parent:
+                pass
+            else:
+                gevent.wait()
 
             for f in concurrent.futures.as_completed(finish):
                 tmp = dict()
+                # gevent.wait([f], timeout=0)
                 res = f.result()
 
                 if res == 502:
                     print("Meet unknown scrape error, maybe scrape_each_chapter can't scrape some specific tag from " \
-                           "page.")
+                          "page.")
 
                     return "Meet unknown scrape error, maybe scrape_each_chapter can't scrape some specific tag from " \
                            "page."
@@ -160,6 +185,8 @@ def confirm_comic_task(manga_id):
                     socketio.emit('response', tmp)
                 else:
                     continue
+
+        # gevent.sleep(0)
 
         complete_info = dict()
         complete_info['manga_id'] = manga_id
@@ -175,18 +202,21 @@ def confirm_comic_task(manga_id):
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
-        sleep_time = (8 + int(random.random() * 5)) * 60
+        # todo
+        # sleep_time = (1 + int(random.random() * 2)) * 60
+        #
+        # gevent.sleep(sleep_time)
 
-        time.sleep(sleep_time)
     else:
         print('No need to download.')
 
 
-def re_zip_task(id):
+def re_zip_task():
     print(f"########### 扫描开始！ ############")
     re_zip_run()
     print(f"########### 扫描完成 ############")
     socketio.emit('scan_completed')
+
 
 # call entry function that boot scanning after first self server call
 @app.before_first_request
@@ -234,6 +264,7 @@ class DogeSearch(Resource):
 
             return r
 
+
 class DogePost(Resource):
 
     def post(self):
@@ -275,11 +306,13 @@ class DogeCurDownloading(Resource):
 
         return {'data': Current_download, 'code': 200}
 
+
 class DogeReZip(Resource):
 
     def get(self):
+        gevent.threading.Thread(target=re_zip_task).start()
 
-        threading.Thread(target= re_zip_task).start()
+        gevent.sleep(0)
 
         return {'data': 'Re zip downloaded document begin', 'code': 200}
 
@@ -307,22 +340,22 @@ def start_runner():
 
             except:
                 print('Server not yet started')
-            time.sleep(1)
+            gevent.sleep(1)
 
     print('Started runner')
     thread = threading.Thread(target=start_loop)
     thread.start()
 
-#socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
+# socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
 
 # if __name__ == '__main__':
-    # serve(app, host='127.0.0.1', port= 5000)
-    # app.run(host='127.0.0.1', port= 5000, debug= True)
-    # start_runner()
-    # '''
-    # must turn off the use_reloader and make allow_unsafe_werkzeug to true, 
-    # because if run under werkzeug reload env, werkzeug will run other process for checking modification on code,
-    # it means server will boot twice, due to the function of crawler, it will break thread safe and bring it to chaos :(
-    # '''
-    # socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
-    # socketio.run(app, host='127.0.0.1', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)
+# serve(app, host='127.0.0.1', port= 5000)
+# app.run(host='127.0.0.1', port= 5000, debug= True)
+# start_runner()
+# '''
+# must turn off the use_reloader and make allow_unsafe_werkzeug to true,
+# because if run under werkzeug reload env, werkzeug will run other process for checking modification on code,
+# it means server will boot twice, due to the function of crawler, it will break thread safe and bring it to chaos :(
+# '''
+# socketio.run(app, host='127.0.0.1', port=5000, debug=True, use_reloader=False)
+# socketio.run(app, host='127.0.0.1', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)

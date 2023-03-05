@@ -1,5 +1,5 @@
 from queue import Queue
-from threading import Thread, current_thread
+from gevent.threading import Thread
 
 doing = []
 

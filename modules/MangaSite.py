@@ -15,5 +15,5 @@ class MangaSite(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx):
+    def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx, app):
         pass
