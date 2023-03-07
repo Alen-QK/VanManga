@@ -67,6 +67,8 @@ ENTRYPOINT gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w
 ```
 **Cautions: DO NOT expose your local port outside your server in any kind of situation!**
 
+Then, when you boot your project image, you need to set you local port to connect exposing project port, and connect your local downloaded manga path to '/downloaded' path inside project. Then you will see downloaded manga in your local specify path.  
+
 ## How to use this system?
 
 // TODO May need more update in the future.
