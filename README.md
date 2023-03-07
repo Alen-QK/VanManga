@@ -71,6 +71,10 @@ ENTRYPOINT gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w
 
 // TODO May need more update in the future.
 
+## Demo
+
+// TODO May need more update in the future.
+
 <!-- ## Demo
 
 nighttown.aijiangsb.com or https://aijiangsb.com:9070
@@ -86,7 +90,7 @@ For Special Demo only. So plz DO NOT submit any files.
 ### Contributors
 
 Currently 2 main contributors are working for this project. 
-<a href="https://github.com/wzl778633/vanIsLord/graphs/contributors">
+<a href="https://github.com/Alen-QK/python-vanmanga-crawler/graphs/contributors">
 Tom "Van" Wang & Alen "Alen" Qi
 </a>
 
