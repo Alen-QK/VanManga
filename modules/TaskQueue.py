@@ -36,7 +36,7 @@ class TaskQueue(Queue):
                 task(manga_id)
             elif dtype == '1':
                 manga_id = current_task['chapter'][0]
-                print(current_task['chapter'])
+                # print(current_task['chapter'])
                 task(current_task['chapter'])
 
             self.task_done()
