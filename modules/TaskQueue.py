@@ -26,14 +26,23 @@ class TaskQueue(Queue):
             # tupl = self.get()
             current_task = self.get()
             task = current_task['target']
+            dtype = current_task['dtype']
+            manga_id = ''
             # 添加执行中
             doing.append(current_task)
             # 执行
-            task(current_task['manga_id'])
+            if dtype == '0':
+                manga_id = current_task['manga_id']
+                task(manga_id)
+            elif dtype == '1':
+                manga_id = current_task['chapter'][0]
+                print(current_task['chapter'])
+                task(current_task['chapter'])
+
             self.task_done()
             # 移除执行中
             doing.remove(current_task)
-            print(f"\n{current_task['manga_id']} removed from queue\n")
+            print(f"\n{manga_id} removed from queue\n")
 
     # def worker(self):
     #     while True:

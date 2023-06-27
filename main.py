@@ -86,7 +86,7 @@ def boot_scanning(manga_library):
         # print(manga)
 
         if manga['completed'] == False:
-            Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
+            Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
             DG = DGmanga(manga['manga_id'])
@@ -99,7 +99,7 @@ def boot_scanning(manga_library):
             history_length = manga['last_epi']
 
             if history_length < current_manga_length:
-                Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'])
+                Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
                 print(f"\n{manga['manga_id']} add to the queue\n")
 
 
@@ -159,7 +159,6 @@ def confirm_comic_task(manga_id):
                 # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
                 future = executor.submit(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx, app)
 
-
                 finish.append(future)
                 gevent.sleep(2 + int(random.random() * 3))
 
@@ -211,6 +210,61 @@ def confirm_comic_task(manga_id):
         print('No need to download.')
 
 
+def download_chapter_task(chapter):
+    global manga_library
+    global Error_dict
+    global Current_download
+    global download_root_folder_path
+
+    manga_id = chapter[0]
+    manga_name = manga_library[manga_id]['manga_name']
+    DG = DGmanga(manga_id)
+    chapters_array = [chapter[1:]]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+
+        finish = list()
+
+        for idx, chp in enumerate(chapters_array):
+            # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓, 如果不在这里加上gevent.sleep移交协程control，就会出现死锁，
+            # 导致实际上DG实例已经在sleep后将control交还main，但是main自己相当于锁了自己，至此导致worker等待超时，被kill
+            while Error_dict['g_error_flag']:
+                gevent.sleep(0)
+            # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
+            future = executor.submit(DG.download_single_chapter, chp, Error_dict, app, download_root_folder_path, manga_name)
+
+            finish.append(future)
+            gevent.sleep(2 + int(random.random() * 3))
+
+        if gevent.getcurrent() is not gevent.hub.get_hub().parent:
+            pass
+        else:
+            gevent.wait()
+
+        for f in concurrent.futures.as_completed(finish):
+            tmp = dict()
+            # gevent.wait([f], timeout=0)
+            res = f.result()
+
+            if res == 502:
+                print("Meet unknown scrape error, maybe download_single_chapter can't scrape some specific tag from " \
+                      "page.")
+
+                return "Meet unknown scrape error, maybe download_single_chapter can't scrape some specific tag from " \
+                       "page."
+
+            if res[2]:
+                tmp['manga_id'], tmp['newest_epi'], tmp['newest_epi_name'] = manga_id, f.result()[0], f.result()[1]
+                socketio.emit('response', tmp)
+            else:
+                continue
+
+        complete_info = dict()
+        complete_info['manga_id'] = manga_id
+        complete_info['completed'] = True
+        socketio.emit('complete_info', complete_info)
+
+
 def re_zip_task():
     print(f"########### 扫描开始！ ############")
     re_zip_run()
@@ -229,7 +283,7 @@ def before_first_request():
     global Q
     Q = TaskQueue(num_workers=1)
     Q.join()
-    boot_scanning(manga_library)
+    # boot_scanning(manga_library)
     # init daily scheduled mission
     scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
     scheduler.start()
@@ -281,7 +335,7 @@ class DogePost(Resource):
 
         # 后台工作交由多线程执行，先返回200
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
-        Q.add_task(target=confirm_comic_task, manga_id=manga_id)
+        Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype= '0')
 
         with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -317,11 +371,56 @@ class DogeReZip(Resource):
         return {'data': 'Re zip downloaded document begin', 'code': 200}
 
 
+class DogeShortLib(Resource):
+    global manga_library
+
+    def post(self):
+        payload = [{
+            'manga_id': key,
+            'manga_name': value['manga_name']
+        } for key, value in manga_library.items()]
+
+        return {'data': payload, 'code': 200}
+
+
+class DogeGetManga(Resource):
+
+    def get(self):
+        args = request.args
+        mangaId = args['manga_id']
+
+        tempDG = DGmanga(mangaId)
+        session = requests.session()
+        chapter_array = tempDG.comic_main_page(mangaId, session)
+        chapter_array = [{
+            'chapter_title': item[0],
+            'chapter_link': item[1]
+        } for item in chapter_array]
+
+        return {'data': chapter_array, 'code': 200}
+
+
+class DogeReDownload(Resource):
+
+    def get(self):
+        args = request.args
+        manga_id = args['manga_id']
+        chapter_title = args['chapter_title']
+        chapter_link = args['chapter_link']
+
+        Q.add_task(target=download_chapter_task, chapter=[manga_id, chapter_title, chapter_link], dtype= '1')
+
+        return {'data': 'submitted', 'code': 200}
+
+
 api.add_resource(DogeSearch, '/api/dogemanga/search')
 api.add_resource(DogePost, '/api/dogemanga/confirm')
 api.add_resource(DogeLibrary, '/api/dogemanga/lib')
 api.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
 api.add_resource(DogeReZip, '/api/dogemanga/rezip')
+api.add_resource(DogeShortLib, '/api/dogemanga/shortlib')
+api.add_resource(DogeGetManga, '/api/dogemanga/confirmmanga')
+api.add_resource(DogeReDownload, '/api/dogemanga/redownload')
 
 
 # loop of self server call, run on mainThread, if call success, will terminate thread

@@ -14,6 +14,7 @@ from modules.ua_producer import ua_producer
 from modules.make_path import path_exists_make
 from modules.generate_file_path import do_zip_compress
 
+
 class DGmanga(MangaSite):
     def __init__(self, manga_id):
         self.manga_id = manga_id
@@ -142,7 +143,8 @@ class DGmanga(MangaSite):
                 # 计算等待时间
                 wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
 
-                print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (chapter_title, wait_time))
+                print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (
+                chapter_title, wait_time))
                 gevent.sleep(wait_time)
                 Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
@@ -187,10 +189,71 @@ class DGmanga(MangaSite):
 
                     return (idx, chapter_title, False)
 
+    def download_single_chapter(self, chapter, Error_dict, app, download_root_folder_path, manga_name):
+        self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}/{manga_name}'
+        # print(self.target_folder_path)
+        path_exists_make(self.target_folder_path)
+
+        with app.app_context():
+            chapter_title = chapter[0].replace(' - ', '&')
+            chapter_link = chapter[1]
+
+            print(f"\n{chapter_title} downloading begin........\n")
+            # 找出‘第 # 页’
+            # findPage = re.compile('Page\s\d+$')
+            findPage = re.compile('第\s\d+\s[页|頁]')
+
+            headers = {'User-Agent': ua_producer()}
+            response = requests.get(chapter_link, headers=headers)
+            # flag = False
+
+            # if response.status_code == 429:
+            if response.status_code == 429:
+                Error_dict['g_error_flag'] = True
+                # 设定error_count的最大上限为5
+                if Error_dict['g_error_count'] < 6:
+                    Error_dict['g_error_count'] += 1
+                # 计算等待时间
+                wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
+
+                print('\n%s: 章节抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (
+                    chapter_title, wait_time))
+                gevent.sleep(wait_time)
+                Error_dict['g_error_flag'] = False
+                print('\n重新开始抓取\n')
+                # flag = True
+                return self.scrape_each_chapter(chapter, Error_dict, app)
+            else:
+                soup = BeautifulSoup(response.text, 'lxml')
+
+                try:
+                    site_reader = soup.find('div', class_='site-reader')
+                    img_array = list()
+                    # 匹配具有‘data-page-image-url’属性的图片tag
+                    img_collection = site_reader.find_all('img', attrs={'data-page-image-url': True})
+                except:
+                    return 502
+
+                for img_tag in img_collection:
+
+                    try:
+                        img_page = findPage.findall(img_tag['alt'])
+                        img_id = img_tag['data-page-image-url'].split('/')
+                        img_array.append([img_page[0], img_id[-1]])
+                    except:
+                        return 502
+
+            session = requests.Session()
+            print(f'\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}')
+            self.download_img(chapter_title, img_array, session, Error_dict)
+
+        return ('temp')
+
     def download_img(self, chapter_title, img_array, session, Error_dict):
 
         folder_path = self.target_folder_path + f'/{chapter_title}'
         path_exists_make(folder_path)
+        # print(folder_path)
         headers = {'User-Agent': ua_producer()}
 
         for img in img_array:
@@ -211,7 +274,8 @@ class DGmanga(MangaSite):
                     Error_dict['g_error_count'] += 1
 
                 wait_time = Error_dict['g_wait_time'] * Error_dict['g_error_count'] + int(random.random() * 10)
-                print('\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (img_title, wait_time))
+                print('\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n' % (
+                img_title, wait_time))
                 gevent.sleep(wait_time)
                 Error_dict['g_error_flag'] = False
                 print('\n重新开始抓取\n')
