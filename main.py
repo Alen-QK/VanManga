@@ -42,6 +42,9 @@ if not os.path.exists('/vanmanga/eng_config/manga_library.json'):
 # post format
 confirm_post_args = reqparse.RequestParser()
 confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
+redownload_post_args = reqparse.RequestParser()
+redownload_post_args.add_argument('manga_id', type=str, help='manga_id of the manga is required', required= True)
+redownload_post_args.add_argument('selected_array', type=str, help='redownload chapter array is required', required= True)
 
 Current_download = ''
 Q = None
@@ -413,8 +416,8 @@ class DogeGetManga(Resource):
 
 class DogeReDownload(Resource):
 
-    def get(self):
-        args = request.args
+    def post(self):
+        args = redownload_post_args.parse_args()
         manga_id = args['manga_id']
         selected_array = ast.literal_eval(args['selected_array'])
         # chapter_title = args['chapter_title']
