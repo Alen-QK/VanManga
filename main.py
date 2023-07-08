@@ -10,6 +10,7 @@ import requests
 import json
 import ast
 import concurrent.futures
+import datetime
 
 from gevent.threadpool import ThreadPool
 
@@ -22,6 +23,8 @@ from flask_socketio import SocketIO, send, emit
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
 from flask_cors import CORS
+
+from datetime import timezone
 
 from modules.DGmanga import DGmanga
 
@@ -137,6 +140,11 @@ def confirm_comic_task(manga_id):
 
         socketio.emit('downloading_info', manga_id)
 
+        dt = datetime.datetime.now(timezone.utc)
+        utc_time = dt.replace(tzinfo=timezone.utc)
+
+        manga_library[manga_id]['add_date'] = utc_time.timestamp()
+
         start = 1 if history_length == 1 else history_length + 1
         end = current_manga_length
 
@@ -231,6 +239,16 @@ def download_chapter_task(chapter):
     DG = DGmanga(manga_id)
     selected_array = chapter[1]
 
+    Current_download = manga_id
+    print(f'\n{manga_id} 已经开始下载..........\n')
+
+    dt = datetime.datetime.now(timezone.utc)
+    utc_time = dt.replace(tzinfo=timezone.utc)
+
+    manga_library[manga_id]['add_date'] = utc_time.timestamp()
+
+    socketio.emit('downloading_info', manga_id)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
 
         finish = list()
@@ -270,10 +288,11 @@ def download_chapter_task(chapter):
             else:
                 continue
 
-        complete_info = dict()
-        complete_info['manga_id'] = manga_id
-        complete_info['completed'] = True
-        socketio.emit('complete_info', complete_info)
+    complete_info = dict()
+    complete_info['manga_id'] = manga_id
+    complete_info['completed'] = True
+    socketio.emit('complete_info', complete_info)
+    Current_download = ''
 
 
 def re_zip_task():
@@ -406,6 +425,12 @@ class DogeGetManga(Resource):
         tempDG = DGmanga(mangaId)
         session = requests.session()
         chapter_array = tempDG.comic_main_page(mangaId, session)
+
+        if chapter_array == 501:
+            print('查询失败，无法访问指定漫画主页面，返回501')
+
+            return {'data': 'error', 'code': 501}
+
         chapter_array = [{
             'chapter_title': item[0],
             'chapter_link': item[1]
@@ -420,6 +445,7 @@ class DogeReDownload(Resource):
         args = redownload_post_args.parse_args()
         manga_id = args['manga_id']
         selected_array = ast.literal_eval(args['selected_array'])
+        selected_array = [[item['chapter_title'],item['chapter_link']] for item in selected_array]
         # chapter_title = args['chapter_title']
         # chapter_link = args['chapter_link']
 

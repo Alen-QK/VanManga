@@ -122,7 +122,7 @@ class DGmanga(MangaSite):
 
     def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx, app):
         with app.app_context():
-            chapter_title = chapter[0].replace(' - ', '&')
+            chapter_title = chapter[0].replace('-', '#')
             chapter_link = chapter[1]
 
             print(f"\n{chapter_title} downloading begin........\n")
@@ -195,7 +195,7 @@ class DGmanga(MangaSite):
         path_exists_make(self.target_folder_path)
 
         with app.app_context():
-            chapter_title = chapter[0].replace(' - ', '&')
+            chapter_title = chapter[0].replace('-', '#')
             chapter_link = chapter[1]
 
             print(f"\n{chapter_title} downloading begin........\n")
