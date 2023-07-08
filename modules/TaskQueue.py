@@ -19,7 +19,9 @@ class TaskQueue(Queue):
             t = Thread(target=self.worker)
             print(t.getName() + '/////////////')
             t.daemon = True
+            print('daemon thread on')
             t.start()
+            print('Thread on')
 
     def worker(self):
         while True:
@@ -33,10 +35,11 @@ class TaskQueue(Queue):
             # 执行
             if dtype == '0':
                 manga_id = current_task['manga_id']
+                print('当前队列中执行的漫画是：' + manga_id)
                 task(manga_id)
             elif dtype == '1':
                 manga_id = current_task['chapter'][0]
-                # print(current_task['chapter'])
+                print('当前队列中执行的漫画是：' + manga_id)
                 task(current_task['chapter'])
 
             self.task_done()

@@ -82,13 +82,16 @@ def dogemangaTask():
 
 
 def boot_scanning(manga_library):
+    print('开始bootScanning')
     for manga in manga_library.values():
-        # print(manga)
+        print('扫描漫画：' + manga['manga_name'])
 
         if manga['completed'] == False:
+            print(manga['manga_name'] + '/' + manga['manga_id'] + '没有完成')
             Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
+            print(manga['manga_name'] + '/' + manga['manga_id'] + '已完成，但是需要检查是否更新')
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
 
@@ -98,7 +101,11 @@ def boot_scanning(manga_library):
 
             history_length = manga['last_epi']
 
+            print(manga['manga_name'] + '历史长度是' + str(history_length) + ',' + '当前长度是' + str(
+                current_manga_length))
+
             if history_length < current_manga_length:
+                print('因为当前长度大于历史长度，所以需要加入队列更新')
                 Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
                 print(f"\n{manga['manga_id']} add to the queue\n")
 
@@ -219,13 +226,14 @@ def download_chapter_task(chapter):
     manga_id = chapter[0]
     manga_name = manga_library[manga_id]['manga_name']
     DG = DGmanga(manga_id)
-    chapters_array = [chapter[1:]]
+    selected_array = chapter[1]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
 
         finish = list()
 
-        for idx, chp in enumerate(chapters_array):
+        for chp in selected_array:
+            print(chp)
             # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓, 如果不在这里加上gevent.sleep移交协程control，就会出现死锁，
             # 导致实际上DG实例已经在sleep后将control交还main，但是main自己相当于锁了自己，至此导致worker等待超时，被kill
             while Error_dict['g_error_flag']:
@@ -283,10 +291,13 @@ def before_first_request():
     global Q
     Q = TaskQueue(num_workers=1)
     Q.join()
-    # boot_scanning(manga_library)
+    print('队列已经创建')
+    boot_scanning(manga_library)
     # init daily scheduled mission
+    print('bootScanning完成，即将开始安排计划任务上线')
     scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
     scheduler.start()
+    print('计划任务挂载')
     print(f"########### 初始化完成 ############")
 
 
@@ -405,10 +416,11 @@ class DogeReDownload(Resource):
     def get(self):
         args = request.args
         manga_id = args['manga_id']
-        chapter_title = args['chapter_title']
-        chapter_link = args['chapter_link']
+        selected_array = ast.literal_eval(args['selected_array'])
+        # chapter_title = args['chapter_title']
+        # chapter_link = args['chapter_link']
 
-        Q.add_task(target=download_chapter_task, chapter=[manga_id, chapter_title, chapter_link], dtype= '1')
+        Q.add_task(target=download_chapter_task, chapter=[manga_id, selected_array], dtype= '1')
 
         return {'data': 'submitted', 'code': 200}
 
