@@ -75,7 +75,7 @@ Then, when you boot your project image, you need to set you local port to connec
 
 ## Demo
 
-// TODO May need more update in the future.
+[VanManga](https://aijiangsb.com:7777/mainpage/mangaku)
 
 <!-- ## Demo
 
