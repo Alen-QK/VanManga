@@ -314,7 +314,7 @@ def before_first_request():
     Q = TaskQueue(num_workers=1)
     Q.join()
     print('队列已经创建')
-    # boot_scanning(manga_library)
+    boot_scanning(manga_library)
     # init daily scheduled mission
     print('bootScanning完成，即将开始安排计划任务上线')
     scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
