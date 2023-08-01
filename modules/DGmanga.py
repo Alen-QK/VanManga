@@ -13,6 +13,7 @@ from modules.MangaSite import MangaSite
 from modules.ua_producer import ua_producer
 from modules.make_path import path_exists_make
 from modules.generate_file_path import do_zip_compress
+from modules.chapter_title_reformat import chapter_title_reformat
 
 
 class DGmanga(MangaSite):
@@ -122,7 +123,7 @@ class DGmanga(MangaSite):
 
     def scrape_each_chapter(self, chapter, manga_library, Error_dict, his_length, idx, app):
         with app.app_context():
-            chapter_title = chapter[0].replace('-', '#')
+            chapter_title = chapter_title_reformat(chapter[0])
             chapter_link = chapter[1]
 
             print(f"\n{chapter_title} downloading begin........\n")
@@ -195,7 +196,7 @@ class DGmanga(MangaSite):
         path_exists_make(self.target_folder_path)
 
         with app.app_context():
-            chapter_title = chapter[0].replace('-', '#')
+            chapter_title = chapter_title_reformat(chapter[0])
             chapter_link = chapter[1]
 
             print(f"\n{chapter_title} downloading begin........\n")
