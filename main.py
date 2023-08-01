@@ -446,8 +446,6 @@ class DogeReDownload(Resource):
         manga_id = args['manga_id']
         selected_array = ast.literal_eval(args['selected_array'])
         selected_array = [[item['chapter_title'], item['chapter_link']] for item in selected_array]
-        # chapter_title = args['chapter_title']
-        # chapter_link = args['chapter_link']
 
         Q.add_task(target=download_chapter_task, chapter=[manga_id, selected_array], dtype= '1')
 
