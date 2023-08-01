@@ -93,11 +93,11 @@ def boot_scanning(manga_library):
         print('扫描漫画：' + manga['manga_name'])
 
         if manga['completed'] == False:
-            print(manga['manga_name'] + '/' + manga['manga_id'] + '没有完成')
+            print('\n' + manga['manga_name'] + '/' + manga['manga_id'] + '未完成初次抓取')
             Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
-            print(manga['manga_name'] + '/' + manga['manga_id'] + '已完成，但是需要检查是否更新')
+            print('\n' + manga['manga_name'] + '/' + manga['manga_id'] + '已完成初次抓取，检查更新...')
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
 
@@ -111,7 +111,7 @@ def boot_scanning(manga_library):
                 current_manga_length))
 
             if history_length < current_manga_length:
-                print('因为当前长度大于历史长度，所以需要加入队列更新')
+                print('当前长度 > 历史长度，即将加入队列更新...')
                 Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
                 print(f"\n{manga['manga_id']} add to the queue\n")
 
@@ -316,10 +316,10 @@ def before_first_request():
     print('队列已经创建')
     boot_scanning(manga_library)
     # init daily scheduled mission
-    print('bootScanning完成，即将开始安排计划任务上线')
+    print('\nbootScanning完成，即将开始安排计划任务上线')
     scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
     scheduler.start()
-    print('计划任务挂载')
+    print('\n计划任务挂载')
     print(f"########### 初始化完成 ############")
 
 
