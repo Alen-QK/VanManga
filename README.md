@@ -54,7 +54,7 @@ FROM python:3.9.7
 WORKDIR /vanmanga
 
 #Add project files to container
-ADD ./{your Project folder name} /{your Project folder name}
+ADD {your local project folder path}
 
 #Install dependences
 RUN pip3 install -r requirements.txt
@@ -65,13 +65,30 @@ EXPOSE 5000
 #Boot project
 ENTRYPOINT gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 -b 0.0.0.0:5000 main:app
 ```
+
 **Cautions: DO NOT expose your local port outside your server in any kind of situation!**
 
-Then, when you boot your project image, you need to set you local port to connect exposing project port, and connect your local downloaded manga path to '/downloaded' path inside project. Then you will see downloaded manga in your local specify path.  
+Then, when you boot your project image, you should map your port and specific local path which server needs. Here is example of docker setting:
+
+```
+Ports: 5500:5000/tcp  
+
+Volumes:  
+{local server config path} => /vanmanga/eng_config
+{local server manga download path} => /downloaded  
+
+Environment variables(if using OS X):  
+PYTHONUNBUFFERED => 1
+```
 
 ## How to use this system?
 
-// TODO May need more update in the future.
+1. **Server Boosting**  
+For boosting your manga server, you need to call server path in browser. <mark>Eg: localhost:5500<mark>
+2. **Searching Manga**
+3. **Downloading Manga**
+4. **Tracking Downloading Status**
+5. **Re-downloading Specific Chapters**
 
 ## Demo
 
