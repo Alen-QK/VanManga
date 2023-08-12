@@ -1,4 +1,4 @@
-# VanManga: 漫画资源抓取服务
+# VanManga: 漫画资源抓取应用
 
 <!-- [中文文档](https://github.com/wzl778633/vanIsLord/blob/master/README_cn.md) -->
 
