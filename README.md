@@ -84,17 +84,23 @@ PYTHONUNBUFFERED => 1
 ## How to use this system?
 
 1. **Server Boosting**  
-For boosting your manga server, you need to call server path in browser. Eg: *localhost:5500*  
+For boosting your manga server, you need to call server path in browser. Eg: *localhost:5500*
+  
+
 2. **Searching Manga**  
 Enter manga name which you want to download in search box.    
 ![s1](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b0daddd5-faa3-41e6-aaba-2b18c8ea43a7)    
 Click search button, server will return the top 10 related results.      
-![s2](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/1b7ab286-64c6-4069-83dc-bae342fdc49a)  
+![s2](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/1b7ab286-64c6-4069-83dc-bae342fdc49a)    
+  
+
 3. **Downloading Manga**  
 Choose one mange which you want to download in searching result, click the card.    
 ![s3](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b27b1631-0faa-46a2-96f9-645b3929907e)  
 Check manga information, if they are correct, click yes button to submit downloading task.     
-![s4](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/2b0d9c7a-e343-4ad6-8a0a-57493a87460e)  
+![s4](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/2b0d9c7a-e343-4ad6-8a0a-57493a87460e)    
+  
+
 4. **Tracking Downloading Status**  
 Click this tab to open downloading management window.    
 ![s4 5](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/9246f8ff-01a6-44cd-a360-10d401eafb25)    
@@ -104,7 +110,9 @@ There are two information of downloading status: **1. the newest chapter name in
 Due to multi-threaded downloads, the script cannot download all chapters in order due to the different download progress during the actual download process, so only the latest chapter names that have been downloaded by the current script are listed here.    
 **Completed**    
 It will display whether the current comic is being downloaded for the first time. The status is divided into downloading, queuing, and completed.
-6. **Re-downloading Specific Chapters**  
+  
+
+5. **Re-downloading Specific Chapters**  
 Click re-downloading button of manga which you want to repair.  
 ![s6](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/4b0cbb19-fb58-40ab-9e68-3e73175efa78)  
 Server will show all available chapter in a modal window.
@@ -132,7 +140,7 @@ For Special Demo only. So plz DO NOT submit any files.
 
 Currently 2 main contributors are working for this project. 
 <a href="https://github.com/Alen-QK/python-vanmanga-crawler/graphs/contributors">
-Tom "Van" Wang & Alen "Alen" Qi
+Tom "Van" Wang & Kun "Alen" Qi
 </a>
 
 We will welcome any contribution for this project! 
