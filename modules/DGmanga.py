@@ -78,6 +78,7 @@ class DGmanga(MangaSite):
 
     def generate_chapters_array(self, start, end, download_root_folder_path, manga_name):
         # todo 传参路径
+        manga_name = manga_name.replace('/', '-')
         self.target_folder_path = f'{download_root_folder_path}/{manga_name}${self.manga_id}/{manga_name}'
         path_exists_make(self.target_folder_path)
 

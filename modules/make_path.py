@@ -9,3 +9,7 @@ def path_exists_make(path):
     else:
         # print('创建了路径')
         os.makedirs(path, exist_ok= True)
+
+
+# path = 'Fate / Strange Fake'
+

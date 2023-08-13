@@ -17,6 +17,7 @@ from gevent.threadpool import ThreadPool
 from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 from modules.re_zip_downloaded import re_zip_run
+from modules.duplicate_check import duplicate_check
 
 from flask import Flask, redirect, render_template
 from flask_socketio import SocketIO, send, emit
@@ -45,6 +46,7 @@ if not os.path.exists('/vanmanga/eng_config/manga_library.json'):
 # post format
 confirm_post_args = reqparse.RequestParser()
 confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
+confirm_post_args.add_argument('submit_sign', type=str, help='submit_sign of submission is required', required=True)
 redownload_post_args = reqparse.RequestParser()
 redownload_post_args.add_argument('manga_id', type=str, help='manga_id of the manga is required', required= True)
 redownload_post_args.add_argument('selected_array', type=str, help='redownload chapter array is required', required= True)
@@ -358,16 +360,38 @@ class DogePost(Resource):
         global manga_library
         global Q
         args = confirm_post_args.parse_args()
+        # print(args)
         manga_object = ast.literal_eval(args['manga_object'])
+        submit_sign = args['submit_sign']
         manga_id = manga_object['manga_id']
+        # print(manga_library)
 
-        if manga_id not in manga_library:
-            manga_library[manga_id] = make_manga_object(manga_object)
+        if submit_sign == '0':
+            if manga_id not in manga_library:
+                manga_name = manga_object['manga_name']
+                # print(manga_library.keys())
+
+                potential_matches = duplicate_check(manga_name, manga_library)
+                # print(potential_matches)
+
+                if potential_matches:
+                    return {'data': potential_matches, 'code': 411}
+                else:
+                    manga_library[manga_id] = make_manga_object(manga_object)
+                    # print('submitted1')
+            else:
+                return {'data': 'same id in library, no need to submit', 'code': 410}
         else:
-            return {'data': 'same id in library, no need to submit', 'code': 410}
+            if manga_id not in manga_library:
+                manga_library[manga_id] = make_manga_object(manga_object)
+                # print('submitted2')
+            else:
+                return {'data': 'same id in library, no need to submit', 'code': 410}
+
 
         # 后台工作交由多线程执行，先返回200
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
+
         Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype= '0')
 
         with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
