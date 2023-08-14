@@ -92,14 +92,14 @@ def dogemangaTask():
 def boot_scanning(manga_library):
     print('开始bootScanning')
     for manga in manga_library.values():
-        print('扫描漫画：' + manga['manga_name'])
+        print('\n扫描漫画：' + manga['manga_name'])
 
         if manga['completed'] == False:
-            print('\n' + manga['manga_name'] + '/' + manga['manga_id'] + '未完成初次抓取')
+            print(manga['manga_name'] + '/' + manga['manga_id'] + '未完成初次抓取')
             Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
-            print('\n' + manga['manga_name'] + '/' + manga['manga_id'] + '已完成初次抓取，检查更新...')
+            print(manga['manga_name'] + '/' + manga['manga_id'] + '已完成初次抓取，检查更新...')
             DG = DGmanga(manga['manga_id'])
             current_manga_length = DG.check_manga_length()
 
