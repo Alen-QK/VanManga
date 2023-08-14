@@ -7,7 +7,7 @@
 
 ![Preview](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/40b1bfc5-0e74-41e3-9fe0-07ba6882ca12)
 
-VanManga是一款轻量化的，功能丰富的跨平台漫画抓取应用。该应用可以抓取、管理漫画资源，为漫画阅读、资源备份等提供服务。
+VanManga是一款轻量化的，功能丰富的漫画抓取应用。该应用可以抓取、管理漫画资源，以此为漫画阅读、资源备份等提供服务。
 </div>  
   
   
