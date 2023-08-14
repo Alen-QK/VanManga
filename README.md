@@ -1,9 +1,9 @@
 # VanManga  
-<div align="center">  
-
-**Logo**  
-
-**Preview**  
+<div align="center">
+  
+![VanLogo](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/e4f30d77-a6fe-421a-b411-af73134ffdfa)
+![Brands](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/654e0b06-45e4-4754-8841-51abb64d019e)
+![Preview](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/40b1bfc5-0e74-41e3-9fe0-07ba6882ca12)
 
 VanManga is a lightweight, feature rich, cross-platform manga crawling server. This application is designed to crawl and manage manga resources from manga source, enabling functions such as manga reading and backup.
 </div>  
