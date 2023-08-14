@@ -1,153 +1,104 @@
-# VanManga: 漫画资源抓取应用
+# VanManga  
+<div align="center">  
 
-<!-- [中文文档](https://github.com/wzl778633/vanIsLord/blob/master/README_cn.md) -->
+**Logo**  
 
-<!-- [Server repo is here](https://github.com/star-wyx/drive) -->
+**Preview**  
 
-A Python web crawler base on Flask + Vue.js, implements searching, crawling manga and progress monitoring functions.
-
-Example scenarios for this project usage are: Crawling and saving manga resources from websites, serving other developed manga viewer front end.
-
-This project has 2 parts currently, Front-End web-client server and Back-End server:
-Front-End web-client server is based on Vue 2.x, Element-Ui & Nginx 1.23.0 (Which is the current repo).
-Back-End server is based on Flask & Gunicorn 20.1.0.
-
-![UI1](https://user-images.githubusercontent.com/37805183/223309012-1957706d-b734-43f9-8b10-93f6361979b6.png)
-![UI2](https://user-images.githubusercontent.com/37805183/223309017-5cd1797f-abaf-4130-b6f5-6b3d0e2f855e.png)
-
-
-
-## Table of Contents
-
-- [What this project can do?](#What-this-project-can-do)
-- [How To Install?](#How-To-Install)
-- [How to use this system?](#How-to-use-this-system)
-- [Demo](#demo)
-- [Contributing](#contributing)
-- [License](#license)
-
-## What this project can do?
-
-This project designed for manga resource collecting. It can extract manga pages from website and transform them to custom format and save locally. If you want to develop a manga viewer base on a manga server, you can have a try :)
-
-The reason we build VanManga is we want to build a private manga service for our friends and chat groups, without ads disturbance from other manga websites.
-
-The main features for this repository are:
-
+VanManga is a lightweight, feature rich, cross-platform manga crawling server. This application is designed to crawl and manage manga resources from manga source, enabling functions such as manga reading and backup.
+</div>  
+  
+  
+## What VanManga can do?
 1. 🔍 **Searching manga from web**. Enter the manga name in search box, you will get top 10 results from source website. Than you can select and download whatever you want.
-2. 🛫 **Unique key of each manga**. Same manga will only be allowed to download once in real disk with a unique key. So if backend checks one manga which you select have been downloaded previously, it will inform you.
+2. ⚠️ **Management of manga**. To ensure a diverse yet non-redundant collection of manga resources, when submitting a download request to the server, it will examine locally stored similar resources and, if necessary, provide users with confirmation options.
 3. 📋 **Downloading queue**. All downloading tasks will be added in a task queue and waiting for executing.
-4. 🔄 **Daily check for manga updating** Flask APScheduler will execute a checking tasks everyday for updating downloaded manga if they are updated by website.
-5. 🖥️ **Dashboard monitoring downloading**. You can check dashboard tab to view downloading prograss of manga, it will show and update the latest episode name which have been downloaded and manga status in backend with WebSocket. 
-6. 🗃️ **Re-zip all manga files**. If you need to re zip your local manga files, backend provides a api to check and re zip files in order to reduce storage consumption.
-7. 🔧 **Re-downloading single chapters**. Sometimes due to the unstable web connection, some chapters will download failed. Now you can use re-downloading function to fix broken image in single chapter of mangas
-8. **And maybe More in the future!**
-
-## How To Install?
-
-Currently, This project is specify built for our own server. But we will build a general version which will have config customize. 
-
-We use docker to build this project. So you could try this DockerFile to build your own image of this project:
-```
-#Boot Ubuntu image
-FROM python:3.9.7
-#Switch to specify project folder
-WORKDIR /vanmanga
-
-#Add project files to container
-ADD {your local project folder path}
-
-#Install dependencies
-RUN pip3 install -r requirements.txt
-RUN pip3 install gunicorn
-
-#Expose project port
-EXPOSE 5000
-#Boot project
-ENTRYPOINT gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 -b 0.0.0.0:5000 main:app
-```
-
-**Cautions: DO NOT expose your local port outside your server in any kind of situation!**
-
-Then, when you boot your project image, you should map your port and specific local path which server needs. Here is example of docker setting:
-
-```
-Ports: 5500:5000/tcp  
-
-Volumes:  
-{local server config path} => /vanmanga/eng_config
-{local server manga download path} => /downloaded  
-
-Environment variables(if using OS X):  
-PYTHONUNBUFFERED => 1
-```
-
-## How to use this system?
-
-1. **Server Boosting**  
-For boosting your manga server, you need to call server path in browser. Eg: *localhost:5500*
+4. 🔄 **Daily check for manga updating** Manga server will execute a checking task every day for updating downloaded manga if they are updated by source website.
+5. 🖥️ **Dashboard monitoring downloading**. You can check dashboard tab to view downloading progress of manga, it will show and update the latest episode name dynamically which have been downloaded and manga status in server with WebSocket. 
+6. 🗃️ **Re-zip all manga files**. If you need to re-zip your local manga files, server provides a function to check and re-zip local files in order to reduce storage consumption.
+7. 🔧 **Re-downloading single chapter**. Sometimes due to the unstable web connection, some chapters will download failed. Now you can use re-downloading function to fix broken image in single chapter of mangas
+8. **And maybe more in the future!**
+  
   
 
-2. **Searching Manga**  
-Enter manga name which you want to download in search box.    
-![s1](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b0daddd5-faa3-41e6-aaba-2b18c8ea43a7)    
-Click search button, server will return the top 10 related results.      
-![s2](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/1b7ab286-64c6-4069-83dc-bae342fdc49a)    
+## How to Install?
+Currently, this project is available for local deployment through Docker Hub. So you can run your local VanManga server with customized HTTP port.
+1. Please ensure you have installed [Docker](https://www.docker.com/) in your system. On Windows or MacOS, we recommend you to install [Docker Desktop](https://www.docker.com/products/docker-desktop/) to experience easier deployment. If you use Linux, feel free to use command line to do it.
+2. After installing Docker, please use this following command to get the latest version of VanManga in Docker:
+    ```
+   docker pull wzl778633/vanislord_manga:latest
+   ```
+3. To run your Docker container correctly, you need to set up environment variables \  volumes \ port:
+    - Environment variables
+        >**PYTHONUNBUFFERED**: used for printing server log in Docker container, default is 1  
+        **MANGA_BASE_URL**: URL which you use to connect backend, default is http://localhost:5000. If you are using bridge in your Docker, you should change 'localhost' to your bridge internal IP.  
+        **MANGA_BASE_WEBSOCKET_URL**: URL which you expose to external, this is used for WebSocket services, default is http://localhost:5000.
+    - Volumes
+        > { local path to manga lib } <==> /downloaded    
+        { local path to config files } <==> /vanmanga/eng_config
+    - Port
+        > 5000:5000 /* or any port you want */
+    
+   You can use following command directly, or set up above variables in Docker Desktop GUI:  
+    ```
+   docker run --name /*Your container name*/ \
+    -e PYTHONUNBUFFERED=1 \
+    -e MANGA_BASE_URL=http://localhost:5000  \
+    -e MANGA_BASE_WEBSOCKET_URL=http://localhost:5000  \
+    --mount type=bind,source=/*local machine address to manga lib*/,target=/downloaded \
+    --mount type=bind,source=/*local machine address to config file*/,target=/vanmanga/eng_config \
+    -p 5000:5000
+    wzl778633/vanislord_manga:latest
+   ```
+4. Once container is running, you need to open the website with the URL you have settled(E.g. http://localhost:5000) to start initialization. Currently, the website will be blocked during the initialization, but you can see the process of initialization inside Docker container's logs.
+    - The purpose of this initialization is to scan your existing `manga_library.json` and add all your existing manga information to the server and check the update.
   
-
-3. **Downloading Manga**  
-Choose one manga which you want to download in searching result, click the card.    
-![s3](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b27b1631-0faa-46a2-96f9-645b3929907e)  
-Check manga information, if they are correct, click yes button to submit downloading task.     
-![s4](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/2b0d9c7a-e343-4ad6-8a0a-57493a87460e)    
   
-
-4. **Tracking Downloading Status**  
-Click this tab to open downloading management window.    
-![s4 5](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/9246f8ff-01a6-44cd-a360-10d401eafb25)    
-There are two information of downloading status: **1. the newest chapter name in library 2. completed**    
-![s5](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/3a1d2837-fad0-46bc-a953-d3d1c080eec3)    
-**The newest chapter name in library**    
-Due to multi-threaded downloads, the script cannot download all chapters in order due to the different download progress during the actual download process, so only the latest chapter names that have been downloaded by the current script are listed here.    
-**Completed**    
-It will display whether the current comic is being downloaded for the first time. The status is divided into downloading, queuing, and completed.
+## How to use?
+1. **Searching Manga**  
+    We are using [DogeManga](https://dogemanga.com/) as source.  
+    Enter manga name which you want to download in search box. It will show the top 10 related result in the browser. **Caution:** We will warn you if we detected you are adding mangas which may exist in the library based on name.  
+    ![s1](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b0daddd5-faa3-41e6-aaba-2b18c8ea43a7)     
+    ![s2](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/1b7ab286-64c6-4069-83dc-bae342fdc49a)
+2. **Downloading Manga**  
+    Select any mangas in searching results, after a short confirmation it will initiate downloading task. Currently, we will download all the chapters inside this manga(including volumes, specials, extras ...). 
+    ![s3](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/b27b1631-0faa-46a2-96f9-645b3929907e)  
+    ![s4](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/2b0d9c7a-e343-4ad6-8a0a-57493a87460e)
+3. **Manga Lib Dashboard**
+    All the mangas you downloaded can be found in this dashboard. You can see the current status for each manga(E.g. Downloading / Queuing / Completed ...).  
+    Currently, dashboard only shows the latest chapter name which have been downloaded for you to track the status from each manga. 
+    ![s4 5](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/9246f8ff-01a6-44cd-a360-10d401eafb25) 
+    ![s5](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/3a1d2837-fad0-46bc-a953-d3d1c080eec3)
+4. **Re-downloading**
+    For each manga if you found any (chapter / volume / ... etc.). is broken during you reading. You can simply request re-download to that specific (chapter / volume / ... etc.).
+    ![s6](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/4b0cbb19-fb58-40ab-9e68-3e73175efa78) 
+    ![s7](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/0b2aca2f-1a40-4d66-9671-0992f1b9ac61)
+    ![s8](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/d19194c8-e273-4dbe-9439-53e54b0a4a3d)
+5. **Reading**  
+    Currently, our file structure is built to support [Kavita](https://github.com/Kareadita/Kavita). We highly recommend you to use it as your manga server. You can easily manage your manga files with its Web GUI and read with its reader. It also provides support to [Paperback](https://paperback.moe/) for IOS devices and [Tachiyomi](https://tachiyomi.org/) for Android. You can find useful guides for setup below.  
+    - Kavita: https://wiki.kavitareader.com/en
+    - Paperback: https://wiki.kavitareader.com/en/guides/misc/paperback
+    - Tachiyomi: https://wiki.kavitareader.com/en/guides/misc/tachiyomi
+   
+    But feel free to use any manga server you prefer if you don't like Kavita!
   
-
-5. **Re-downloading Specific Chapters**  
-Click re-downloading button of manga which you want to repair.  
-![s6](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/4b0cbb19-fb58-40ab-9e68-3e73175efa78)  
-Server will show all available chapter in a modal window.
-![s7](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/0b2aca2f-1a40-4d66-9671-0992f1b9ac61)
-Select chapters which you want to re-download and click yes button to submit tasks to server.
-![s8](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/d19194c8-e273-4dbe-9439-53e54b0a4a3d)
-
+  
 ## Demo
 
-[VanManga](https://aijiangsb.com:7777/mainpage/mangaku)
-
-<!-- ## Demo
-
-nighttown.aijiangsb.com or https://aijiangsb.com:9070
-
-```
-user: test
-pwd: **Ask me if you want to see the demo**
-
-For Special Demo only. So plz DO NOT submit any files.
-``` -->
-
+//ToDo
+  
+  
 ## Contributing
 ### Contributors
 
-Currently 2 main contributors are working for this project. 
+Currently, 2 main contributors are working for this project. 
 <a href="https://github.com/Alen-QK/python-vanmanga-crawler/graphs/contributors">
 Tom "Van" Wang & Kun "Alen" Qi
 </a>
 
 We will welcome any contribution for this project! 
-
-
+  
+  
 ## License
 
 [MIT](LICENSE)
-
