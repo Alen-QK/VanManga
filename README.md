@@ -78,17 +78,17 @@ VanManga是一款轻量化的，功能丰富的漫画抓取应用。该应用可
     ![s7](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/0b2aca2f-1a40-4d66-9671-0992f1b9ac61)
     ![s8](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/d19194c8-e273-4dbe-9439-53e54b0a4a3d)
 5. **阅读漫画**  
-    目前，本应用的文件结构主要支持[Kavita](https://github.com/Kareadita/Kavita)。我们也强烈建议你使用Kavita来作为阅读工具。您可以通过其Web界面轻松管理您的漫画文件，并使用其阅读器进行阅读。它同样支持在IOS设备上使用[Paperback](https://paperback.moe/)以及在Android设备上使用[Tachiyomi](https://tachiyomi.org/)进行阅读。下面是一些有关阅读工具设置的帮助链接：  
+    目前，本应用的文件结构主要支持[Kavita](https://github.com/Kareadita/Kavita)。我们也强烈建议你使用Kavita来作为漫画库服务器。您可以通过其Web界面轻松管理您的漫画文件，并使用其阅读器进行阅读。它同样支持在IOS设备上使用[Paperback](https://paperback.moe/)以及在Android设备上使用[Tachiyomi](https://tachiyomi.org/)进行阅读。下面是一些有关服务器部署及设置的相关链接：  
     - Kavita: https://wiki.kavitareader.com/en
     - Paperback: https://wiki.kavitareader.com/en/guides/misc/paperback
     - Tachiyomi: https://wiki.kavitareader.com/en/guides/misc/tachiyomi
    
-    当然，如果你喜欢使用除Kavita外的其他的漫画阅读应用，请随意使用～
+    当然，如果你喜欢使用除Kavita外的其他的漫画服务器，请随意使用～
   
   
 ## Demo
 
-//待完成
+当前上线的版本为私人社群服务版本，不公开展示，非常抱歉。
   
   
 ## 贡献
