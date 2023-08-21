@@ -11,6 +11,7 @@ import json
 import ast
 import concurrent.futures
 import datetime
+import copy
 
 from gevent.threadpool import ThreadPool
 
@@ -48,8 +49,9 @@ confirm_post_args = reqparse.RequestParser()
 confirm_post_args.add_argument('manga_object', type=str, help='manga_object of the manga is required', required=True)
 confirm_post_args.add_argument('submit_sign', type=str, help='submit_sign of submission is required', required=True)
 redownload_post_args = reqparse.RequestParser()
-redownload_post_args.add_argument('manga_id', type=str, help='manga_id of the manga is required', required= True)
-redownload_post_args.add_argument('selected_array', type=str, help='redownload chapter array is required', required= True)
+redownload_post_args.add_argument('manga_id', type=str, help='manga_id of the manga is required', required=True)
+redownload_post_args.add_argument('selected_array', type=str, help='redownload chapter array is required',
+                                  required=True)
 
 Current_download = ''
 Q = None
@@ -90,13 +92,13 @@ def dogemangaTask():
 
 
 def boot_scanning(manga_library):
-    print('开始bootScanning')
+    print('########## 开始bootScanning ##########')
     for manga in manga_library.values():
         print('\n扫描漫画：' + manga['manga_name'])
 
         if manga['completed'] == False:
             print(manga['manga_name'] + '/' + manga['manga_id'] + '未完成初次抓取')
-            Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
+            Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype='0')
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
             print(manga['manga_name'] + '/' + manga['manga_id'] + '已完成初次抓取，检查更新...')
@@ -114,9 +116,10 @@ def boot_scanning(manga_library):
 
             if history_length < current_manga_length:
                 print('当前长度 > 历史长度，即将加入队列更新...')
-                Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype= '0')
+                Q.add_task(target=confirm_comic_task, manga_id=manga['manga_id'], dtype='0')
                 print(f"\n{manga['manga_id']} add to the queue\n")
-
+        # 因为初始化扫描本来是不限速的，但是如果此时加入了新的下载任务，那么同时访问多个源地址可能就会触发block，安全起见，应该在每扫描完一个后暂停1-3s。
+        gevent.sleep(1)
 
 # 实际上后台下载选定漫画的task
 def confirm_comic_task(manga_id):
@@ -262,7 +265,8 @@ def download_chapter_task(chapter):
             while Error_dict['g_error_flag']:
                 gevent.sleep(0)
             # 这里传递的实际上时manga_library的引用，所以在dogemanga中的任何操作都会直接反应到内存的manga_library对象上，并非副本
-            future = executor.submit(DG.download_single_chapter, chp, Error_dict, app, download_root_folder_path, manga_name)
+            future = executor.submit(DG.download_single_chapter, chp, Error_dict, app, download_root_folder_path,
+                                     manga_name)
 
             finish.append(future)
             gevent.sleep(2 + int(random.random() * 3))
@@ -302,27 +306,6 @@ def re_zip_task():
     re_zip_run()
     print(f"########### 扫描完成 ############")
     socketio.emit('scan_completed')
-
-
-# call entry function that boot scanning after first self server call
-@app.before_first_request
-def before_first_request():
-    """
-    init TaskQueue to make sure Q run under the Flask context, it works for socketio connection maintaining,
-    for verify, you can print current thread of this function (won't mainThread)
-    """
-    print('########### 初始化开始 ############')
-    global Q
-    Q = TaskQueue(num_workers=1)
-    Q.join()
-    print('队列已经创建')
-    boot_scanning(manga_library)
-    # init daily scheduled mission
-    print('\nbootScanning完成，即将开始安排计划任务上线')
-    scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
-    scheduler.start()
-    print('\n计划任务挂载')
-    print(f"########### 初始化完成 ############")
 
 
 class DogeSearch(Resource):
@@ -388,11 +371,10 @@ class DogePost(Resource):
             else:
                 return {'data': 'same id in library, no need to submit', 'code': 410}
 
-
         # 后台工作交由多线程执行，先返回200
         # Thread(target= confirm_comic_task, args= [manga_id]).start()
 
-        Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype= '0')
+        Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype='0')
 
         with open('/vanmanga/eng_config/manga_library.json', 'w', encoding='utf8') as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -471,19 +453,68 @@ class DogeReDownload(Resource):
         selected_array = ast.literal_eval(args['selected_array'])
         selected_array = [[item['chapter_title'], item['chapter_link']] for item in selected_array]
 
-        Q.add_task(target=download_chapter_task, chapter=[manga_id, selected_array], dtype= '1')
+        Q.add_task(target=download_chapter_task, chapter=[manga_id, selected_array], dtype='1')
 
         return {'data': 'submitted', 'code': 200}
 
 
-api.add_resource(DogeSearch, '/api/dogemanga/search')
-api.add_resource(DogePost, '/api/dogemanga/confirm')
-api.add_resource(DogeLibrary, '/api/dogemanga/lib')
-api.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
-api.add_resource(DogeReZip, '/api/dogemanga/rezip')
-api.add_resource(DogeShortLib, '/api/dogemanga/shortlib')
-api.add_resource(DogeGetManga, '/api/dogemanga/confirmmanga')
-api.add_resource(DogeReDownload, '/api/dogemanga/redownload')
+def api_loader(api_instance):
+    print('########### 初始化API ############')
+    api_instance.add_resource(DogeSearch, '/api/dogemanga/search')
+    api_instance.add_resource(DogePost, '/api/dogemanga/confirm')
+    api_instance.add_resource(DogeLibrary, '/api/dogemanga/lib')
+    api_instance.add_resource(DogeCurDownloading, '/api/dogemanga/cdl')
+    api_instance.add_resource(DogeReZip, '/api/dogemanga/rezip')
+    api_instance.add_resource(DogeShortLib, '/api/dogemanga/shortlib')
+    api_instance.add_resource(DogeGetManga, '/api/dogemanga/confirmmanga')
+    api_instance.add_resource(DogeReDownload, '/api/dogemanga/redownload')
+    print('########### API初始化完成 ############')
+
+
+print('########### 初始化开始 ############')
+"""
+init TaskQueue to make sure Q run under the Flask context, it works for socketio connection maintaining,
+for verify, you can print current thread of this function (won't mainThread)
+"""
+Q = TaskQueue(num_workers=1)
+Q.join()
+print('队列已经创建')
+
+gevent.threading.Thread(target=api_loader, args=[api]).start()
+gevent.sleep(0)
+'''
+制作一份manga_library的浅拷贝给初始化扫描使用，因为如果使用多协程上线API的同时进行初始化扫描，用户可能会访问漫画搜索页面并提交任务。
+而提交任务时，必然会改变原始manga_library的size，而此时如果初始化扫描正在进行，就会发生错误，因为初始化扫描不能依赖一个已经变化的dict，Python会报错dict的size已经改变。
+所以此时生成一份对于manga_library的浅拷贝就是相当于一个初始化扫描前开始的快照，所有在扫描期间加入的新任务自然也不在扫描的范畴内。
+初始化扫描只会把它开始的时点前library中所有的manga扫描一遍。这样就做到了既支持搜索和提交的API，同时初始化任务也不会报错。
+'''
+boot_manga_lib = copy.copy(manga_library)
+gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
+gevent.sleep(0)
+
+print('\nbootScanning完成，即将开始安排计划任务上线')
+scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
+scheduler.start()
+print('\n计划任务挂载')
+print(f"########### 初始化完成 ############")
+
+
+# call entry function that boot scanning after first self server call
+# @app.before_first_request
+# def before_first_request():
+# print('########### 初始化开始 ############')
+# global Q
+# Q = TaskQueue(num_workers=1)
+# Q.join()
+# print('队列已经创建')
+# api_loader(api)
+# boot_scanning(manga_library)
+# # init daily scheduled mission
+# print('\nbootScanning完成，即将开始安排计划任务上线')
+# scheduler.add_job(id='Dogemanga task', func=dogemangaTask, trigger='cron', hour='1', minute='30')
+# scheduler.start()
+# print('\n计划任务挂载')
+# print(f"########### 初始化完成 ############")
 
 
 # loop of self server call, run on mainThread, if call success, will terminate thread
