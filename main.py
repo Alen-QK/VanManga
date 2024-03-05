@@ -6,7 +6,6 @@ import os
 import threading
 import gevent
 import random
-import requests
 import json
 import ast
 import concurrent.futures
@@ -27,6 +26,7 @@ from flask_restful import Api, Resource, reqparse, request
 from flask_cors import CORS
 
 from datetime import timezone
+from DrissionPage import SessionPage
 
 from modules.DGmanga import DGmanga
 
@@ -140,7 +140,12 @@ def boot_scanning(manga_library):
                 print("该漫画已完结，无需检查更新\n")
                 continue
             else:
-                print(manga["manga_name"] + "/" + manga["manga_id"] + "已完成初次抓取，检查更新...")
+                print(
+                    manga["manga_name"]
+                    + "/"
+                    + manga["manga_id"]
+                    + "已完成初次抓取，检查更新..."
+                )
                 DG = DGmanga(manga["manga_id"])
                 current_manga_length, serialization = DG.check_manga_length()
 
@@ -226,7 +231,7 @@ def confirm_comic_task(manga_id):
             finish = list()
 
             for idx, chapter in enumerate(chapters_array):
-                # 如果其他线程的task已经被bloack，那么当前线程的章节任务暂缓, 如果不在这里加上gevent.sleep移交协程control，就会出现死锁，
+                # 如果其他线程的task已经被block，那么当前线程的章节任务暂缓, 如果不在这里加上gevent.sleep移交协程control，就会出现死锁，
                 # 导致实际上DG实例已经在sleep后将control交还main，但是main自己相当于锁了自己，至此导致worker等待超时，被kill
                 while Error_dict["g_error_flag"]:
                     gevent.sleep(0)
@@ -506,8 +511,8 @@ class DogeGetManga(Resource):
         mangaId = args["manga_id"]
 
         tempDG = DGmanga(mangaId)
-        session = requests.session()
-        chapter_array = tempDG.comic_main_page(mangaId, session)
+        # session = requests.session()
+        chapter_array = tempDG.comic_main_page(mangaId)
 
         if chapter_array == 501:
             print("查询失败，无法访问指定漫画主页面，返回501")

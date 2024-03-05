@@ -5,8 +5,9 @@ import gevent
 import gevent
 from collections import defaultdict
 
-import requests
+# import requests
 from bs4 import BeautifulSoup
+from DrissionPage import SessionPage
 from threading import current_thread
 
 from modules.MangaSite import MangaSite
@@ -23,9 +24,14 @@ class DGmanga(MangaSite):
         self.Current_idx = float("-inf")
 
     def search_manga(self, search_name):
-        headers = {"User-Agent": ua_producer()}
+        # headers = {"User-Agent": ua_producer()}
         url = f"https://dogemanga.com/?q={search_name}&l=zh"
-        response = requests.get(url, headers=headers)
+
+        drissionSession = SessionPage()
+        drissionSession.get(url)
+        # response = requests.get(url, headers=headers)
+        response = drissionSession.response
+
         soup = BeautifulSoup(response.text, "lxml")
 
         site_scroll_row = soup.find("div", class_="site-scroll__row")
@@ -35,7 +41,7 @@ class DGmanga(MangaSite):
             # 限制只返回前十个结果
             max_amount = min(10, len(site_cards))
             results = list()
-            session = requests.Session()
+            # session = requests.Session()
 
             for i in range(max_amount):
                 manga_dict = defaultdict()
@@ -49,7 +55,8 @@ class DGmanga(MangaSite):
                     "\n", ""
                 )
                 thumbnail_link = card.find("img", class_="card-img-top")["src"]
-                manga_thumbnail = session.get(thumbnail_link, headers=headers).content
+                drissionSession.get(thumbnail_link)
+                manga_thumbnail = drissionSession.response.content
                 encoded_thumbnail = (base64.b64encode(manga_thumbnail)).decode("utf-8")
 
                 manga_dict["manga_name"] = manga_name
@@ -65,10 +72,14 @@ class DGmanga(MangaSite):
             return 457
 
     def check_manga_length(self):
-        headers = {"User-Agent": ua_producer()}
+        # headers = {"User-Agent": ua_producer()}
         target_link = f"https://dogemanga.com/m/{self.manga_id}?l=zh"
 
-        response = requests.get(target_link, headers=headers).text
+        drissionSession = SessionPage()
+        drissionSession.get(target_link)
+        response = drissionSession.response.text
+
+        # response = requests.get(target_link, headers=headers).text
         soup = BeautifulSoup(response, "lxml")
 
         try:
@@ -101,8 +112,8 @@ class DGmanga(MangaSite):
         )
         path_exists_make(self.target_folder_path)
 
-        session = requests.Session()
-        chapters_array = self.comic_main_page(self.manga_id, session)
+        # session = requests.Session()
+        chapters_array = self.comic_main_page(self.manga_id)
 
         if chapters_array == 501:
             return 501
@@ -112,11 +123,14 @@ class DGmanga(MangaSite):
 
         return chapters_array
 
-    def comic_main_page(self, target, session):
-        headers = {"User-Agent": ua_producer()}
+    def comic_main_page(self, target):
+        # headers = {"User-Agent": ua_producer()}
         target_link = f"https://dogemanga.com/m/{target}?l=zh"
 
-        response = session.get(target_link, headers=headers).text
+        drissionSession = SessionPage()
+        drissionSession.get(target_link)
+
+        response = drissionSession.response.text
         soup = BeautifulSoup(response, "lxml")
 
         try:
@@ -157,11 +171,14 @@ class DGmanga(MangaSite):
             # findPage = re.compile('Page\s\d+$')
             findPage = re.compile("第\s\d+\s[页|頁]")
 
-            headers = {"User-Agent": ua_producer()}
-            response = requests.get(chapter_link, headers=headers)
+            # headers = {"User-Agent": ua_producer()}
+            # response = requests.get(chapter_link, headers=headers)
             # flag = False
 
-            # if response.status_code == 429:
+            drissionSession = SessionPage()
+            drissionSession.get(chapter_link)
+            response = drissionSession.response
+
             if response.status_code == 429:
                 Error_dict["g_error_flag"] = True
                 # 设定error_count的最大上限为5
@@ -204,11 +221,11 @@ class DGmanga(MangaSite):
                     except:
                         return 502
 
-                session = requests.Session()
+                # session = requests.Session()
                 print(
                     f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
                 )
-                self.download_img(chapter_title, img_array, session, Error_dict)
+                self.download_img(chapter_title, img_array, Error_dict)
 
                 if self.Current_idx < idx:
                     self.Current_idx = idx
@@ -245,8 +262,11 @@ class DGmanga(MangaSite):
             # findPage = re.compile('Page\s\d+$')
             findPage = re.compile("第\s\d+\s[页|頁]")
 
-            headers = {"User-Agent": ua_producer()}
-            response = requests.get(chapter_link, headers=headers)
+            # headers = {"User-Agent": ua_producer()}
+            drissionSession = SessionPage()
+            drissionSession.get(chapter_link)
+
+            response = drissionSession.response
             # flag = False
 
             # if response.status_code == 429:
@@ -290,19 +310,19 @@ class DGmanga(MangaSite):
                     except:
                         return 502
 
-            session = requests.Session()
+            # session = requests.Session()
             print(
                 f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
             )
-            self.download_img(chapter_title, img_array, session, Error_dict)
+            self.download_img(chapter_title, img_array, Error_dict)
 
         return "temp"
 
-    def download_img(self, chapter_title, img_array, session, Error_dict):
+    def download_img(self, chapter_title, img_array, Error_dict):
         folder_path = self.target_folder_path + f"/{chapter_title}"
         path_exists_make(folder_path)
         # print(folder_path)
-        headers = {"User-Agent": ua_producer()}
+        # headers = {"User-Agent": ua_producer()}
 
         for img in img_array:
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
@@ -313,7 +333,10 @@ class DGmanga(MangaSite):
             img_title = img[0]
             img_id = img[1]
             target_link = f"https://dogemanga.com/images/pages/{img_id}?l=zh"
-            response = session.get(target_link, headers=headers)
+            # response = session.get(target_link, headers=headers)
+            drissionSession = SessionPage()
+            drissionSession.get(target_link)
+            response = drissionSession.response
 
             if response.status_code == 429:
                 Error_dict["g_error_flag"] = True
@@ -332,7 +355,7 @@ class DGmanga(MangaSite):
                 Error_dict["g_error_flag"] = False
                 print("\n重新开始抓取\n")
 
-                return self.download_img(chapter_title, img_array, session, Error_dict)
+                return self.download_img(chapter_title, img_array, Error_dict)
             else:
                 target_path = folder_path + ("/%s" % img_title) + ".jpg"
 
