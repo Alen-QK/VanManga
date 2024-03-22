@@ -338,33 +338,39 @@ class DGmanga(MangaSite):
             drissionSession.get(target_link)
             response = drissionSession.response
 
-            if response.status_code == 429:
-                Error_dict["g_error_flag"] = True
+            try:
+                if response.status_code == 429:
+                    Error_dict["g_error_flag"] = True
 
-                if Error_dict["g_error_count"] < 6:
-                    Error_dict["g_error_count"] += 1
+                    if Error_dict["g_error_count"] < 6:
+                        Error_dict["g_error_count"] += 1
 
-                wait_time = Error_dict["g_wait_time"] * Error_dict[
-                    "g_error_count"
-                ] + int(random.random() * 10)
-                print(
-                    "\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                    % (img_title, wait_time)
-                )
-                gevent.sleep(wait_time)
-                Error_dict["g_error_flag"] = False
-                print("\n重新开始抓取\n")
+                    wait_time = Error_dict["g_wait_time"] * Error_dict[
+                        "g_error_count"
+                    ] + int(random.random() * 10)
+                    print(
+                        "\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        % (img_title, wait_time)
+                    )
+                    gevent.sleep(wait_time)
+                    Error_dict["g_error_flag"] = False
+                    print("\n重新开始抓取\n")
 
-                return self.download_img(chapter_title, img_array, Error_dict)
-            else:
-                target_path = folder_path + ("/%s" % img_title) + ".jpg"
+                    return self.download_img(chapter_title, img_array, Error_dict)
+                else:
+                    target_path = folder_path + ("/%s" % img_title) + ".jpg"
 
-                with open(target_path, "wb") as f:
-                    f.write(response.content)
+                    with open(target_path, "wb") as f:
+                        f.write(response.content)
 
-                print("%s %s downloaded" % (chapter_title, img_title))
+                    print("%s %s downloaded" % (chapter_title, img_title))
 
-                gevent.sleep(1 + int(random.random() * 1))
+                    gevent.sleep(1 + int(random.random() * 1))
+
+            except Exception as e:
+                print(e)
+                print(target_link)
+                continue
 
         print(f"########### {chapter_title} 压缩开始！ ############")
         do_zip_compress(folder_path)
