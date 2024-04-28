@@ -18,6 +18,7 @@ from modules.make_manga_object import make_manga_object
 from modules.TaskQueue import TaskQueue
 from modules.re_zip_downloaded import re_zip_run
 from modules.duplicate_check import duplicate_check
+from modules.serialization_make import serialization_make
 
 from flask import Flask, redirect, render_template
 from flask_socketio import SocketIO, send, emit
@@ -40,11 +41,19 @@ api = Api(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 scheduler = APScheduler()
 
-if not os.path.exists("/vanmanga/eng_config/manga_library.json"):
-    manga_library_content = {}
-    os.mknod("/vanmanga/eng_config/manga_library.json")
+LIB_PATH = "/vanmanga/eng_config/manga_library.json"
 
-    with open("/vanmanga/eng_config/manga_library.json", "w", encoding="utf8") as f:
+if os.path.exists(LIB_PATH):
+    manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
+    if "serialization" not in list(manga_library.values())[0].keys():
+        serialization_make(LIB_PATH)
+    else:
+        pass
+else:
+    manga_library_content = {}
+    os.mknod(LIB_PATH)
+
+    with open(LIB_PATH, "w", encoding="utf8") as f:
         json_tmp = json.dumps(manga_library_content, indent=4, ensure_ascii=False)
         f.write(json_tmp)
 
@@ -82,9 +91,7 @@ change_serialization_args.add_argument(
 
 Current_download = ""
 Q = None
-manga_library = json.load(
-    open("/vanmanga/eng_config/manga_library.json", encoding="utf-8")
-)
+manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
 Error_dict = {"g_error_flag": False, "g_error_count": 0, "g_wait_time": 40}
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
@@ -293,7 +300,7 @@ def confirm_comic_task(manga_id):
 
         # print(manga_library)
 
-        with open("/vanmanga/eng_config/manga_library.json", "w", encoding="utf8") as f:
+        with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
@@ -461,7 +468,7 @@ class DogePost(Resource):
 
         Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype="0")
 
-        with open("/vanmanga/eng_config/manga_library.json", "w", encoding="utf8") as f:
+        with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
@@ -552,7 +559,7 @@ class DogeChangeSerial(Resource):
         status = args["status"]  # status = 0: 未完结， status = 1: 已完结
         manga_library[manga_id]["serialization"] = status
 
-        with open("/vanmanga/eng_config/manga_library.json", "w", encoding="utf8") as f:
+        with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
 
