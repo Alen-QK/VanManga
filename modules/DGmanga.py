@@ -323,6 +323,7 @@ class DGmanga(MangaSite):
         path_exists_make(folder_path)
         # print(folder_path)
         # headers = {"User-Agent": ua_producer()}
+        failed_array = []
 
         for img in img_array:
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
@@ -370,6 +371,47 @@ class DGmanga(MangaSite):
             except Exception as e:
                 print(e)
                 print(target_link)
+                failed_array.append([img_title, target_link])
+                continue
+
+        for retry_item in failed_array:
+            title, link = retry_item
+            drissionSession = SessionPage()
+            drissionSession.get(link)
+            response = drissionSession.response
+
+            try:
+                if response.status_code == 429:
+                    Error_dict["g_error_flag"] = True
+
+                    if Error_dict["g_error_count"] < 6:
+                        Error_dict["g_error_count"] += 1
+
+                    wait_time = Error_dict["g_wait_time"] * Error_dict[
+                        "g_error_count"
+                    ] + int(random.random() * 10)
+                    print(
+                        "\n%s: 单页抓取遇到429错误，将开始等待%d s !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        % (img_title, wait_time)
+                    )
+                    gevent.sleep(wait_time)
+                    Error_dict["g_error_flag"] = False
+                    print("\n重新开始抓取\n")
+
+                    return self.download_img(chapter_title, img_array, Error_dict)
+                else:
+                    target_path = folder_path + ("/%s" % title) + ".jpg"
+
+                    with open(target_path, "wb") as f:
+                        f.write(response.content)
+
+                    print("%s %s downloaded" % (chapter_title, title))
+
+                    gevent.sleep(1 + int(random.random() * 1))
+
+            except Exception as e:
+                print(e)
+                print(link)
                 continue
 
         print(f"########### {chapter_title} 压缩开始！ ############")
