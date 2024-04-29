@@ -30,14 +30,14 @@ def chapter_title_reformat(chapterTitle):
     pattern4 = re.compile(r"[0-9]+")
 
     if pattern1.search(chapterTitle):
-        print("p1")
+        # print("p1")
         chapterTitle = chapterTitle.replace("-", "-第")
         chapterTitle = chapterTitle.replace("(", "（").replace(")", "）")
 
         return chapterTitle
 
     if pattern2.search(chapterTitle):
-        print("p2")
+        # print("p2")
         match = pattern2.search(chapterTitle)
         startIdx = match.span()[0]
         prevStr = chapterTitle[: startIdx + 1]
@@ -58,7 +58,7 @@ def chapter_title_reformat(chapterTitle):
     #     return chapterTitle
 
     if len(pattern4.findall(chapterTitle)) >= 2:
-        print("p4")
+        # print("p4")
         chapterTitle = pattern4.sub(
             lambda match: match.group().replace(match.group(), "第" + match.group()),
             chapterTitle,
@@ -88,6 +88,7 @@ def chapter_title_reformat(chapterTitle):
 #     "先西日记V2",
 #     "12-13",
 #     "02-僵尸05-21",
+#     "第5话",
 # ]
 
 # for w in word:
