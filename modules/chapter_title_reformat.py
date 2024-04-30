@@ -57,7 +57,7 @@ def chapter_title_reformat(chapterTitle):
 
     #     return chapterTitle
 
-    if len(pattern4.findall(chapterTitle)) >= 2:
+    if len(pattern4.findall(chapterTitle)) >= 2 and "." not in chapterTitle:
         # print("p4")
         chapterTitle = pattern4.sub(
             lambda match: match.group().replace(match.group(), "第" + match.group()),
@@ -88,6 +88,7 @@ def chapter_title_reformat(chapterTitle):
 #     "先西日记V2",
 #     "12-13",
 #     "02-僵尸05-21",
+#     "第48.5话",
 #     "第5话",
 # ]
 

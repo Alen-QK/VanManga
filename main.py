@@ -81,13 +81,13 @@ redownload_post_args.add_argument(
     required=True,
 )
 # 改变漫画连载状态API
-change_serialization_args = reqparse.RequestParser()
-change_serialization_args.add_argument(
+change_download_args = reqparse.RequestParser()
+change_download_args.add_argument(
     "manga_id", type=str, help="manga_id is required", required=True
 )
-change_serialization_args.add_argument(
-    "status", type=str, help="status is required", required=True
-)
+# change_download_args.add_argument(
+#     "status", type=str, help="status is required", required=True
+# )
 
 Current_download = ""
 Q = None
@@ -294,6 +294,10 @@ def confirm_comic_task(manga_id):
         complete_info["completed"] = True
         socketio.emit("complete_info", complete_info)
         Current_download = ""
+
+        # 仅在初次抓取时根据抓取到的连载状态设置默认的下载开关值
+        if manga_library[manga_id]["completed"] == False:
+            manga_library[manga_id]["download_switch"] = serialization
 
         manga_library[manga_id]["completed"] = True
         manga_library[manga_id]["serialization"] = serialization
@@ -550,14 +554,15 @@ class DogeReDownload(Resource):
         return {"data": "submitted", "code": 200}
 
 
-class DogeChangeSerial(Resource):
+class DogeChangeDownload(Resource):
     global manga_library
 
     def post(self):
-        args = change_serialization_args.parse_args()
+        args = change_download_args.parse_args()
         manga_id = args["manga_id"]
-        status = args["status"]  # status = 0: 未完结， status = 1: 已完结
-        manga_library[manga_id]["serialization"] = status
+        # switch = args["switch"]  # switch = 0: 未完结， switch = 1: 已完结
+        switch = manga_library[manga_id]["download_switch"]
+        manga_library[manga_id]["download_switch"] = 0 if switch == 1 else 1
 
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -574,7 +579,7 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeShortLib, "/api/dogemanga/shortlib")
     api_instance.add_resource(DogeGetManga, "/api/dogemanga/confirmmanga")
     api_instance.add_resource(DogeReDownload, "/api/dogemanga/redownload")
-    api_instance.add_resource(DogeChangeSerial, "/api/dogemanga/serialization")
+    api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
     print("########### API初始化完成 ############")
 
 
