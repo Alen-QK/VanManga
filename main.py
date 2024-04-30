@@ -11,6 +11,7 @@ import ast
 import concurrent.futures
 import datetime
 import copy
+import shutil
 
 from gevent.threadpool import ThreadPool
 
@@ -88,6 +89,10 @@ change_download_args.add_argument(
 # change_download_args.add_argument(
 #     "status", type=str, help="status is required", required=True
 # )
+delete_manga_args = reqparse.RequestParser()
+delete_manga_args.add_argument(
+    "manga_id", type=str, help="manga_id is required", required=True
+)
 
 Current_download = ""
 Q = None
@@ -569,6 +574,30 @@ class DogeChangeDownload(Resource):
             f.write(json_tmp)
 
 
+class DogeDeleteManga(Resource):
+    global manga_library
+    global download_root_folder_path
+
+    def delete(self):
+        args = delete_manga_args.parse_args()
+        manga_id = args["manga_id"]
+        manga_name = manga_library[manga_id]["manga_name"]
+        delete_path = f"{download_root_folder_path}/{manga_name}${manga_id}"
+
+        try:
+            shutil.rmtree(delete_path)
+            del manga_library[manga_id]
+
+            with open(LIB_PATH, "w", encoding="utf8") as f:
+                json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
+                f.write(json_tmp)
+
+            return {"data": True, "code": 200}
+        except Exception as e:
+            print(e)
+            return {"data": False, "code": 500}
+
+
 def api_loader(api_instance):
     print("########### 初始化API ############")
     api_instance.add_resource(DogeSearch, "/api/dogemanga/search")
@@ -580,6 +609,7 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeGetManga, "/api/dogemanga/confirmmanga")
     api_instance.add_resource(DogeReDownload, "/api/dogemanga/redownload")
     api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
+    api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemaga")
     print("########### API初始化完成 ############")
 
 
