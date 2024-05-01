@@ -22,7 +22,6 @@ VanManga is a lightweight, feature rich, manga crawling server. This application
 6. 🗃️ **Re-zip all manga files**. If you need to re-zip your local manga files, server provides a function to check and re-zip local files in order to reduce storage consumption.
 7. 🔧 **Re-downloading single chapter**. Sometimes due to the unstable web connection, some chapters will download failed. Now you can use re-downloading function to fix broken image in single chapter of mangas
 8. **And maybe more in the future!**
-  
 
 
 ## How to Install?
@@ -44,7 +43,7 @@ Currently, this project is available for local deployment through Docker Hub. So
      >  { local path to config files } <==> /vanmanga/eng_config
    - Port
      > 5000:5000 /_ or any port you want _/
-   You can use following command directly, or set up above variables in Docker Desktop GUI:
+     > You can use following command directly, or set up above variables in Docker Desktop GUI:
    ```
    docker run --name /*Your container name*/ \
    -e PYTHONUNBUFFERED=1 \
@@ -80,11 +79,11 @@ Currently, this project is available for local deployment through Docker Hub. So
    ![s7](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/0b2aca2f-1a40-4d66-9671-0992f1b9ac61)
    ![s8](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/d19194c8-e273-4dbe-9439-53e54b0a4a3d)
 5. **Reading**  
-   Currently, our file structure is built to support [Kavita](https://github.com/Kareadita/Kavita). We highly recommend you to use it as your manga server. You can easily manage your manga files with its Web GUI and read with its reader. It also provides support to [Paperback](https://paperback.moe/) for IOS devices and [Tachiyomi](https://tachiyomi.org/) for Android. You can find useful guides for setup below.
+   Currently, our file structure is built to support [Kavita](https://github.com/Kareadita/Kavita). We highly recommend you to use it as your manga server. You can easily manage your manga files with its Web GUI and read with its reader. It also provides support to [Paperback](https://paperback.moe/) for IOS devices and [Mihon](https://mihon.app/) for Android. You can find useful guides for setup below.
 
-   - Kavita: https://wiki.kavitareader.com/en
-   - Paperback: https://wiki.kavitareader.com/en/guides/misc/paperback
-   - Tachiyomi: https://wiki.kavitareader.com/en/guides/misc/tachiyomi
+   - Kavita: https://wiki.kavitareader.com/
+   - Paperback: https://wiki.kavitareader.com/guides/3rdparty/paperback
+   - Mihon: https://wiki.kavitareader.com/guides/3rdparty/tachi-like
 
    But feel free to use any manga server you prefer if you don't like Kavita!
 
