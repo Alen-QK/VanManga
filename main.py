@@ -150,7 +150,7 @@ def boot_scanning(manga_library):
             Q.add_task(target=confirm_comic_task, manga_id=manga["manga_id"], dtype="0")
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
-            if manga["serialization"] == 1:
+            if manga["download_switch"] == 1:
                 print("该漫画已完结，无需检查更新\n")
                 continue
             else:
