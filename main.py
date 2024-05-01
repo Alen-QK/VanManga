@@ -48,6 +48,8 @@ if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
     if "serialization" not in list(manga_library.values())[0].keys():
         serialization_make(LIB_PATH)
+    elif "download_switch" not in list(manga_library.values())[0].keys():
+        serialization_make(LIB_PATH)
     else:
         pass
 else:
@@ -566,12 +568,19 @@ class DogeChangeDownload(Resource):
         args = change_download_args.parse_args()
         manga_id = args["manga_id"]
         # switch = args["switch"]  # switch = 0: 未完结， switch = 1: 已完结
-        switch = manga_library[manga_id]["download_switch"]
-        manga_library[manga_id]["download_switch"] = 0 if switch == 1 else 1
 
-        with open(LIB_PATH, "w", encoding="utf8") as f:
-            json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
-            f.write(json_tmp)
+        try:
+            switch = manga_library[manga_id]["download_switch"]
+            manga_library[manga_id]["download_switch"] = 0 if switch == 1 else 1
+
+            with open(LIB_PATH, "w", encoding="utf8") as f:
+                json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
+                f.write(json_tmp)
+
+            return {"data": "submitted", "code": 200}
+        except Exception as e:
+            print(e)
+            return {"data": "May not include this manga id", "code": 404}
 
 
 class DogeDeleteManga(Resource):
