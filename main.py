@@ -43,18 +43,25 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 scheduler = APScheduler()
 
 LIB_PATH = "/vanmanga/eng_config/manga_library.json"
+# LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
-    if "serialization" not in list(manga_library.values())[0].keys():
+    if (
+        list(manga_library.values())
+        and "serialization" not in list(manga_library.values())[0].keys()
+    ):
         serialization_make(LIB_PATH)
-    elif "download_switch" not in list(manga_library.values())[0].keys():
+    elif (
+        list(manga_library.values())
+        and "download_switch" not in list(manga_library.values())[0].keys()
+    ):
         serialization_make(LIB_PATH)
     else:
         pass
 else:
     manga_library_content = {}
-    os.mknod(LIB_PATH)
+    os.mknod(LIB_PATH)  # ILLYA
 
     with open(LIB_PATH, "w", encoding="utf8") as f:
         json_tmp = json.dumps(manga_library_content, indent=4, ensure_ascii=False)
@@ -102,6 +109,7 @@ manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
 Error_dict = {"g_error_flag": False, "g_error_count": 0, "g_wait_time": 40}
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
+# download_root_folder_path = "./downloaded" # ILLYA
 
 
 # print(manga_library)
@@ -650,6 +658,28 @@ scheduler.add_job(
 scheduler.start()
 print("\n计划任务挂载")
 print(f"########### 初始化完成 ############")
+
+##ILLYA
+# if __name__ == "__main__":
+#     print("########### 初始化开始 ############")
+#     Q = TaskQueue(num_workers=1)
+#     Q.join()
+#     print("队列已经创建")
+
+#     gevent.threading.Thread(target=api_loader, args=[api]).start()
+#     gevent.sleep(0)
+#     boot_manga_lib = copy.copy(manga_library)
+#     gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
+#     gevent.sleep(0)
+
+#     print("\nbootScanning完成，即将开始安排计划任务上线")
+#     scheduler.add_job(
+#         id="Dogemanga task", func=dogemangaTask, trigger="cron", hour="1", minute="30"
+#     )
+#     scheduler.start()
+#     print("\n计划任务挂载")
+#     print(f"########### 初始化完成 ############")
+#     app.run(host="127.0.0.1", port=5000, debug=False)
 
 
 # call entry function that boot scanning after first self server call
