@@ -29,7 +29,7 @@ def update_helper(manga_id):
 
 
 def serialization_make(path):
-    manga_lib = json.load(open(path))
+    manga_lib = json.load(open(path, encoding="utf-8"))
 
     for manga_id, manga_content in manga_lib.items():
         serial_status = update_helper(manga_id)
@@ -37,7 +37,7 @@ def serialization_make(path):
         manga_content["serialization"] = serial_status
         manga_content["download_switch"] = serial_status
 
-    with open(path, "w", encoding="utf8") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json_tmp = json.dumps(manga_lib, indent=4, ensure_ascii=False)
         f.write(json_tmp)
 
