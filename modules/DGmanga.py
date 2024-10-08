@@ -23,14 +23,21 @@ class DGmanga(MangaSite):
         self.target_folder_path = ""
         self.Current_idx = float("-inf")
 
-    def search_manga(self, search_name):
+    def search_manga(self, search_name, CF_dict):
         # headers = {"User-Agent": ua_producer()}
         url = f"https://dogemanga.com/?q={search_name}&l=zh"
 
+        response = None
         drissionSession = SessionPage()
-        drissionSession.get(url)
-        # response = requests.get(url, headers=headers)
-        response = drissionSession.response
+
+        if CF_dict["cf_activate"]:
+            headers = {"User-Agent": CF_dict["cf_userAgent"]}
+            cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+            drissionSession.get(url, headers=headers, cookies=cookie)
+            response = drissionSession.response
+        else:
+            drissionSession.get(url)
+            response = drissionSession.response
 
         soup = BeautifulSoup(response.text, "lxml")
 
@@ -55,7 +62,14 @@ class DGmanga(MangaSite):
                     "\n", ""
                 )
                 thumbnail_link = card.find("img", class_="card-img-top")["src"]
-                drissionSession.get(thumbnail_link)
+
+                if CF_dict["cf_activate"]:
+                    headers = {"User-Agent": CF_dict["cf_userAgent"]}
+                    cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+                    drissionSession.get(thumbnail_link, headers=headers, cookies=cookie)
+                else:
+                    drissionSession.get(thumbnail_link)
+
                 manga_thumbnail = drissionSession.response.content
                 encoded_thumbnail = (base64.b64encode(manga_thumbnail)).decode("utf-8")
 
@@ -68,19 +82,25 @@ class DGmanga(MangaSite):
                 results.append(manga_dict)
 
             return results
-        except:
+        except Exception as e:
+            print(e)
             return 457
 
-    def check_manga_length(self):
-        # headers = {"User-Agent": ua_producer()}
+    def check_manga_length(self, CF_dict):
+        response = None
+        drissionSession = SessionPage()
         target_link = f"https://dogemanga.com/m/{self.manga_id}?l=zh"
 
-        drissionSession = SessionPage()
-        drissionSession.get(target_link)
-        response = drissionSession.response.text
+        if CF_dict["cf_activate"]:
+            headers = {"User-Agent": CF_dict["cf_userAgent"]}
+            cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+            drissionSession.get(target_link, headers=headers, cookies=cookie)
+            response = drissionSession.response
+        else:
+            drissionSession.get(target_link)
+            response = drissionSession.response
 
-        # response = requests.get(target_link, headers=headers).text
-        soup = BeautifulSoup(response, "lxml")
+        soup = BeautifulSoup(response.text, "lxml")
 
         try:
             site_main_content = soup.find("div", class_="site-main-content")
@@ -99,11 +119,12 @@ class DGmanga(MangaSite):
             tab_content = tab_content.find_all("a", class_="site-manga-thumbnail__link")
 
             return [len(tab_content), serialization]
-        except:
-            return 501
+        except Exception as e:
+            print(e)
+            return [0, 501]
 
     def generate_chapters_array(
-        self, start, end, download_root_folder_path, manga_name
+        self, start, end, download_root_folder_path, manga_name, CF_dict
     ):
         # todo 传参路径
         manga_name = manga_name.replace("/", "-")
@@ -113,7 +134,7 @@ class DGmanga(MangaSite):
         path_exists_make(self.target_folder_path)
 
         # session = requests.Session()
-        chapters_array = self.comic_main_page(self.manga_id)
+        chapters_array = self.comic_main_page(self.manga_id, CF_dict)
 
         if chapters_array == 501:
             return 501
@@ -123,15 +144,21 @@ class DGmanga(MangaSite):
 
         return chapters_array
 
-    def comic_main_page(self, target):
-        # headers = {"User-Agent": ua_producer()}
+    def comic_main_page(self, target, CF_dict):
         target_link = f"https://dogemanga.com/m/{target}?l=zh"
-
+        response = None
         drissionSession = SessionPage()
-        drissionSession.get(target_link)
 
-        response = drissionSession.response.text
-        soup = BeautifulSoup(response, "lxml")
+        if CF_dict["cf_activate"]:
+            headers = {"User-Agent": CF_dict["cf_userAgent"]}
+            cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+            drissionSession.get(target_link, headers=headers, cookies=cookie)
+            response = drissionSession.response
+        else:
+            drissionSession.get(target_link)
+            response = drissionSession.response
+
+        soup = BeautifulSoup(response.text, "lxml")
 
         try:
             tab_content = soup.select(".tab-content > #site-manga__tab-pane-all")[0]
@@ -156,11 +183,12 @@ class DGmanga(MangaSite):
                 chapters_array.append([title, link])
 
             return chapters_array
-        except:
+        except Exception as e:
+            print(e)
             return 501
 
     def scrape_each_chapter(
-        self, chapter, manga_library, Error_dict, his_length, idx, app
+        self, chapter, manga_library, Error_dict, his_length, idx, app, CF_dict
     ):
         with app.app_context():
             chapter_title = chapter_title_reformat(chapter[0])
@@ -171,13 +199,17 @@ class DGmanga(MangaSite):
             # findPage = re.compile('Page\s\d+$')
             findPage = re.compile("第\s\d+\s[页|頁]")
 
-            # headers = {"User-Agent": ua_producer()}
-            # response = requests.get(chapter_link, headers=headers)
-            # flag = False
-
+            response = None
             drissionSession = SessionPage()
-            drissionSession.get(chapter_link)
-            response = drissionSession.response
+
+            if CF_dict["cf_activate"]:
+                headers = {"User-Agent": CF_dict["cf_userAgent"]}
+                cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+                drissionSession.get(chapter_link, headers=headers, cookies=cookie)
+                response = drissionSession.response
+            else:
+                drissionSession.get(chapter_link)
+                response = drissionSession.response
 
             if response.status_code == 429:
                 Error_dict["g_error_flag"] = True
@@ -198,7 +230,7 @@ class DGmanga(MangaSite):
                 print("\n重新开始抓取\n")
                 # flag = True
                 return self.scrape_each_chapter(
-                    chapter, manga_library, Error_dict, his_length, idx, app
+                    chapter, manga_library, Error_dict, his_length, idx, app, CF_dict
                 )
             else:
                 soup = BeautifulSoup(response.text, "lxml")
@@ -210,7 +242,8 @@ class DGmanga(MangaSite):
                     img_collection = site_reader.find_all(
                         "img", attrs={"data-page-image-url": True}
                     )
-                except:
+                except Exception as e:
+                    print(e)
                     return 502
 
                 for img_tag in img_collection:
@@ -218,14 +251,15 @@ class DGmanga(MangaSite):
                         img_page = findPage.findall(img_tag["alt"])
                         img_id = img_tag["data-page-image-url"].split("/")
                         img_array.append([img_page[0], img_id[-1]])
-                    except:
+                    except Exception as e:
+                        print(e)
                         return 502
 
                 # session = requests.Session()
                 print(
                     f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
                 )
-                self.download_img(chapter_title, img_array, Error_dict)
+                self.download_img(chapter_title, img_array, Error_dict, CF_dict)
 
                 if self.Current_idx < idx:
                     self.Current_idx = idx
@@ -245,7 +279,7 @@ class DGmanga(MangaSite):
                     return (idx, chapter_title, False)
 
     def download_single_chapter(
-        self, chapter, Error_dict, app, download_root_folder_path, manga_name
+        self, chapter, Error_dict, app, download_root_folder_path, manga_name, CF_dict
     ):
         self.target_folder_path = (
             f"{download_root_folder_path}/{manga_name}${self.manga_id}/{manga_name}"
@@ -262,12 +296,17 @@ class DGmanga(MangaSite):
             # findPage = re.compile('Page\s\d+$')
             findPage = re.compile("第\s\d+\s[页|頁]")
 
-            # headers = {"User-Agent": ua_producer()}
+            response = None
             drissionSession = SessionPage()
-            drissionSession.get(chapter_link)
 
-            response = drissionSession.response
-            # flag = False
+            if CF_dict["cf_activate"]:
+                headers = {"User-Agent": CF_dict["cf_userAgent"]}
+                cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+                drissionSession.get(chapter_link, headers=headers, cookies=cookie)
+                response = drissionSession.response
+            else:
+                drissionSession.get(chapter_link)
+                response = drissionSession.response
 
             # if response.status_code == 429:
             if response.status_code == 429:
@@ -288,7 +327,14 @@ class DGmanga(MangaSite):
                 Error_dict["g_error_flag"] = False
                 print("\n重新开始抓取\n")
                 # flag = True
-                return self.scrape_each_chapter(chapter, Error_dict, app)
+                return self.download_single_chapter(
+                    chapter,
+                    Error_dict,
+                    app,
+                    download_root_folder_path,
+                    manga_name,
+                    CF_dict,
+                )
             else:
                 soup = BeautifulSoup(response.text, "lxml")
 
@@ -299,7 +345,8 @@ class DGmanga(MangaSite):
                     img_collection = site_reader.find_all(
                         "img", attrs={"data-page-image-url": True}
                     )
-                except:
+                except Exception as e:
+                    print(e)
                     return 502
 
                 for img_tag in img_collection:
@@ -307,18 +354,19 @@ class DGmanga(MangaSite):
                         img_page = findPage.findall(img_tag["alt"])
                         img_id = img_tag["data-page-image-url"].split("/")
                         img_array.append([img_page[0], img_id[-1]])
-                    except:
+                    except Exception as e:
+                        print(e)
                         return 502
 
             # session = requests.Session()
             print(
                 f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
             )
-            self.download_img(chapter_title, img_array, Error_dict)
+            self.download_img(chapter_title, img_array, Error_dict, CF_dict)
 
         return "temp"
 
-    def download_img(self, chapter_title, img_array, Error_dict):
+    def download_img(self, chapter_title, img_array, Error_dict, CF_dict):
         folder_path = self.target_folder_path + f"/{chapter_title}"
         path_exists_make(folder_path)
         # print(folder_path)
@@ -334,10 +382,18 @@ class DGmanga(MangaSite):
             img_title = img[0]
             img_id = img[1]
             target_link = f"https://dogemanga.com/images/pages/{img_id}?l=zh"
-            # response = session.get(target_link, headers=headers)
+
+            response = None
             drissionSession = SessionPage()
-            drissionSession.get(target_link)
-            response = drissionSession.response
+
+            if CF_dict["cf_activate"]:
+                headers = {"User-Agent": CF_dict["cf_userAgent"]}
+                cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+                drissionSession.get(target_link, headers=headers, cookies=cookie)
+                response = drissionSession.response
+            else:
+                drissionSession.get(target_link)
+                response = drissionSession.response
 
             try:
                 if response.status_code == 429:
@@ -357,7 +413,9 @@ class DGmanga(MangaSite):
                     Error_dict["g_error_flag"] = False
                     print("\n重新开始抓取\n")
 
-                    return self.download_img(chapter_title, img_array, Error_dict)
+                    return self.download_img(
+                        chapter_title, img_array, Error_dict, CF_dict
+                    )
                 else:
                     target_path = folder_path + ("/%s" % img_title) + ".jpg"
 
@@ -376,9 +434,17 @@ class DGmanga(MangaSite):
 
         for retry_item in failed_array:
             title, link = retry_item
+            response = None
             drissionSession = SessionPage()
-            drissionSession.get(link)
-            response = drissionSession.response
+
+            if CF_dict["cf_activate"]:
+                headers = {"User-Agent": CF_dict["cf_userAgent"]}
+                cookie = {"cf_clearance": CF_dict["cf_clearance_value"]}
+                drissionSession.get(target_link, headers=headers, cookies=cookie)
+                response = drissionSession.response
+            else:
+                drissionSession.get(target_link)
+                response = drissionSession.response
 
             try:
                 if response.status_code == 429:
@@ -398,7 +464,9 @@ class DGmanga(MangaSite):
                     Error_dict["g_error_flag"] = False
                     print("\n重新开始抓取\n")
 
-                    return self.download_img(chapter_title, img_array, Error_dict)
+                    return self.download_img(
+                        chapter_title, img_array, Error_dict, CF_dict
+                    )
                 else:
                     target_path = folder_path + ("/%s" % title) + ".jpg"
 

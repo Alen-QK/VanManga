@@ -12,6 +12,7 @@ import concurrent.futures
 import datetime
 import copy
 import shutil
+import requests
 
 from gevent.threadpool import ThreadPool
 
@@ -102,17 +103,23 @@ delete_manga_args = reqparse.RequestParser()
 delete_manga_args.add_argument(
     "manga_id", type=str, help="manga_id is required", required=True
 )
+manga_lib_paginate_args = reqparse.RequestParser()
+manga_lib_paginate_args.add_argument("start", type=str)
+manga_lib_paginate_args.add_argument("limit", type=str)
 
 Current_download = ""
 Q = None
 manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
 Error_dict = {"g_error_flag": False, "g_error_count": 0, "g_wait_time": 40}
+CF_dict = {
+    "cf_activate": False,
+    "cf_clearance_value": "",
+    "cf_userAgent": "",
+    "updateTime": None,
+}
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
 # download_root_folder_path = "./downloaded" # ILLYA
-
-
-# print(manga_library)
 
 
 # @app.route("/init")
@@ -149,7 +156,27 @@ def dogemangaTask():
 
 
 def boot_scanning(manga_library):
+    global CF_dict
     print("########## 开始bootScanning ##########")
+
+    # 检查Cloudflare状态
+    print("\n########## 检查CloudFlare状态..... ##########")
+    cfMonitor()
+
+    if CF_dict["cf_activate"]:
+        print("\n########## CloudFlare监察已启动，应用相关处理机制 ##########")
+
+        if scheduler.get_job("CFMonitor"):
+            pass
+        else:
+            scheduler.add_job(
+                id="CFMonitor", func=cfMonitor, trigger="interval", seconds=720
+            )
+    else:
+        print("\n########## CloudFlare已关闭 ##########")
+        if scheduler.get_job("CFMonitor"):
+            scheduler.remove_job("CFMonitor")
+
     for manga in manga_library.values():
         print("\n扫描漫画：" + manga["manga_name"])
 
@@ -169,7 +196,7 @@ def boot_scanning(manga_library):
                     + "已完成初次抓取，检查更新..."
                 )
                 DG = DGmanga(manga["manga_id"])
-                current_manga_length, serialization = DG.check_manga_length()
+                current_manga_length, serialization = DG.check_manga_length(CF_dict)
 
                 if current_manga_length == 501:
                     # print('\nMight meet human check, shutdown the task.\n')
@@ -197,16 +224,19 @@ def boot_scanning(manga_library):
         # 因为初始化扫描本来是不限速的，但是如果此时加入了新的下载任务，那么同时访问多个源地址可能就会触发block，安全起见，应该在每扫描完一个后暂停1-3s。
         gevent.sleep(1)
 
+        print("\n########## bootScanning完成 ##########")
+
 
 # 实际上后台下载选定漫画的task
 def confirm_comic_task(manga_id):
     global manga_library
     global Error_dict
+    global CF_dict
     global Current_download
     global download_root_folder_path
 
     DG = DGmanga(manga_id)
-    current_manga_length, serialization = DG.check_manga_length()
+    current_manga_length, serialization = DG.check_manga_length(CF_dict)
 
     if current_manga_length == 501:
         print("\nMight meet human check, shutdown the task.\n")
@@ -231,7 +261,7 @@ def confirm_comic_task(manga_id):
         end = current_manga_length
 
         chapters_array = DG.generate_chapters_array(
-            start, end, download_root_folder_path, manga_name
+            start, end, download_root_folder_path, manga_name, CF_dict
         )
 
         if chapters_array == 501:
@@ -266,6 +296,7 @@ def confirm_comic_task(manga_id):
                     start,
                     idx,
                     app,
+                    CF_dict,
                 )
 
                 finish.append(future)
@@ -337,6 +368,7 @@ def download_chapter_task(chapter):
     global Error_dict
     global Current_download
     global download_root_folder_path
+    global CF_dict
 
     manga_id = chapter[0]
     manga_name = manga_library[manga_id]["manga_name"]
@@ -370,6 +402,7 @@ def download_chapter_task(chapter):
                 app,
                 download_root_folder_path,
                 manga_name,
+                CF_dict,
             )
 
             finish.append(future)
@@ -420,7 +453,109 @@ def re_zip_task():
     socketio.emit("scan_completed")
 
 
+def cfMonitor():
+    global CF_dict
+
+    url = "https://dogemanga.com"
+    drissionSession = SessionPage()
+    drissionSession.get(url)
+    response = drissionSession.response
+
+    # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
+    if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
+        retryCount = 0
+        CF_dict["cf_activate"] = True
+
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "cmd": "request.get",
+            "url": url,
+            "maxTimeout": 60000,
+            "returnOnlyCookies": True,
+        }
+        response = requests.post(
+            "http://172.17.0.1:8191/v1", headers=headers, json=data
+        )
+
+        # 与Bypasser连接的重试
+        while json.loads(response.content)["status"] != "ok" and retryCount < 5:
+            response = requests.post(
+                "http://172.17.0.1:8191/v1", headers=headers, json=data
+            )
+            retryCount += 1
+
+        if (
+            json.loads(response.content)["status"] != "ok"
+            and json.loads(response.content)["message"] != "Challenge solved!"
+        ):
+            print(
+                f"########### 未能从Bypasser获取到cookies，运行任务失败，需要检查链接 ############"
+            )
+            return
+
+        content = json.loads(response.content)
+        solution = content["solution"]
+        # 更新CF的相关信息，用于抓取任务
+        for item in solution["cookies"]:
+            if item["name"] == "cf_clearance":
+                CF_dict["cf_clearance_value"] = item["value"]
+
+        (
+            CF_dict["cf_userAgent"],
+            CF_dict["updateTime"],
+        ) = (
+            solution["userAgent"],
+            datetime.datetime.now(),
+        )
+        print(f"\n########### 已经更新CF的验证信息 ############")
+
+    # 否则说明dogemanga关闭了CF的检测，关闭CF_dict和绕过的所有相关机制
+    else:
+        print("\n########### CF的验证机制暂时关闭，重置验证信息 ############")
+        (
+            CF_dict["cf_activate"],
+            CF_dict["cf_clearance_value"],
+            CF_dict["cf_userAgent"],
+            CF_dict["updateTime"],
+        ) = (False, "", "", None)
+
+
+def libPagination(lib, url, start, limit):
+    global manga_library
+
+    start = int(start)
+    limit = int(limit)
+    count = len(lib)
+
+    if count < start or limit < 0:
+        return 404
+
+    object = {}
+    object["start"] = start
+    object["limit"] = limit
+    object["count"] = count
+
+    if start == 1:
+        object["previous"] = ""
+    else:
+        previousStart = max(1, start - limit)
+        previousLimit = start - 1
+        object["previous"] = {"start": previousStart, "limit": previousLimit}
+
+    if start + limit > count:
+        object["next"] = ""
+    else:
+        nextStart = start + limit
+        object["next"] = {"start": nextStart, "limit": limit}
+
+    object["lib_paginate"] = lib[(start - 1) : (start - 1 + limit)]
+
+    return object
+
+
 class DogeSearch(Resource):
+    global CF_dict
+
     def get(self):
         args = request.args
         search_name = args["manga_name"]
@@ -434,7 +569,7 @@ class DogeSearch(Resource):
 
         DG = DGmanga("tmp")
 
-        results = DG.search_manga(search_name)
+        results = DG.search_manga(search_name, CF_dict)
 
         if results == 457:
             r["code"] = 457
@@ -454,31 +589,25 @@ class DogePost(Resource):
         global manga_library
         global Q
         args = confirm_post_args.parse_args()
-        # print(args)
         manga_object = ast.literal_eval(args["manga_object"])
         submit_sign = args["submit_sign"]
         manga_id = manga_object["manga_id"]
-        # print(manga_library)
 
         if submit_sign == "0":
             if manga_id not in manga_library:
                 manga_name = manga_object["manga_name"]
-                # print(manga_library.keys())
 
                 potential_matches = duplicate_check(manga_name, manga_library)
-                # print(potential_matches)
 
                 if potential_matches:
                     return {"data": potential_matches, "code": 411}
                 else:
                     manga_library[manga_id] = make_manga_object(manga_object)
-                    # print('submitted1')
             else:
                 return {"data": "same id in library, no need to submit", "code": 410}
         else:
             if manga_id not in manga_library:
                 manga_library[manga_id] = make_manga_object(manga_object)
-                # print('submitted2')
             else:
                 return {"data": "same id in library, no need to submit", "code": 410}
 
@@ -497,10 +626,18 @@ class DogePost(Resource):
 class DogeLibrary(Resource):
     def post(self):
         global manga_library
+        args = manga_lib_paginate_args.parse_args()
 
         r = [item for item in manga_library.values()]
 
-        return {"data": r, "code": 200}
+        pagination = libPagination(
+            r,
+            "/api/dogemanga/lib",
+            args["start"] if args["start"] != "" else "1",
+            args["limit"] if args["limit"] else "10",
+        )
+
+        return {"data": pagination, "code": 200}
 
 
 class DogeCurDownloading(Resource):
@@ -538,7 +675,7 @@ class DogeGetManga(Resource):
 
         tempDG = DGmanga(mangaId)
         # session = requests.session()
-        chapter_array = tempDG.comic_main_page(mangaId)
+        chapter_array = tempDG.comic_main_page(mangaId, CF_dict)
 
         if chapter_array == 501:
             print("查询失败，无法访问指定漫画主页面，返回501")
@@ -585,7 +722,12 @@ class DogeChangeDownload(Resource):
                 json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
                 f.write(json_tmp)
 
-            return {"data": "submitted", "code": 200}
+            return {
+                "data": {
+                    "currentDownloadStatus": manga_library[manga_id]["download_switch"]
+                },
+                "code": 200,
+            }
         except Exception as e:
             print(e)
             return {"data": "May not include this manga id", "code": 404}
@@ -593,11 +735,21 @@ class DogeChangeDownload(Resource):
 
 class DogeDeleteManga(Resource):
     global manga_library
+    global Current_download
     global download_root_folder_path
 
     def delete(self):
         args = delete_manga_args.parse_args()
         manga_id = args["manga_id"]
+
+        queue_ids = [task["manga_id"] for task in Q.get_all_tasks()]
+
+        if Current_download == manga_id or manga_id in queue_ids:
+            return {
+                "data": False,
+                "code": 434,
+            }  # 434: 删除的漫画是当前下载中的或者在队列中，无法删除
+
         manga_name = manga_library[manga_id]["manga_name"]
         delete_path = f"{download_root_folder_path}/{manga_name}${manga_id}"
 
@@ -612,7 +764,7 @@ class DogeDeleteManga(Resource):
             return {"data": True, "code": 200}
         except Exception as e:
             print(e)
-            return {"data": False, "code": 500}
+            return {"data": False, "code": 424}
 
 
 def api_loader(api_instance):
@@ -626,7 +778,7 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeGetManga, "/api/dogemanga/confirmmanga")
     api_instance.add_resource(DogeReDownload, "/api/dogemanga/redownload")
     api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
-    api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemaga")
+    api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemanga")
     print("########### API初始化完成 ############")
 
 
