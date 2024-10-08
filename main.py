@@ -473,14 +473,12 @@ def cfMonitor():
             "maxTimeout": 60000,
             "returnOnlyCookies": True,
         }
-        response = requests.post(
-            "http://172.17.0.1:8191/v1", headers=headers, json=data
-        )
+        response = requests.post("http://localhost:8191/v1", headers=headers, json=data)
 
         # 与Bypasser连接的重试
         while json.loads(response.content)["status"] != "ok" and retryCount < 5:
             response = requests.post(
-                "http://172.17.0.1:8191/v1", headers=headers, json=data
+                "http://localhost:8191/v1", headers=headers, json=data
             )
             retryCount += 1
 
