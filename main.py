@@ -1,9 +1,12 @@
+import base64
+
 import gevent.monkey
+
+from utils.thumbnails_creator import thumbnails_creator
 
 gevent.monkey.patch_all()
 
 import os
-import threading
 import gevent
 import random
 import json
@@ -14,16 +17,14 @@ import copy
 import shutil
 import requests
 
-from gevent.threadpool import ThreadPool
+from utils.make_manga_object import make_manga_object
+from utils.TaskQueue import TaskQueue
+from utils.re_zip_downloaded import re_zip_run
+from utils.duplicate_check import duplicate_check
+from utils.serialization_make import serialization_make
 
-from modules.make_manga_object import make_manga_object
-from modules.TaskQueue import TaskQueue
-from modules.re_zip_downloaded import re_zip_run
-from modules.duplicate_check import duplicate_check
-from modules.serialization_make import serialization_make
-
-from flask import Flask, redirect, render_template
-from flask_socketio import SocketIO, send, emit
+from flask import Flask, render_template, send_file
+from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
 from flask_cors import CORS
@@ -43,8 +44,9 @@ api = Api(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 scheduler = APScheduler()
 
-LIB_PATH = "/vanmanga/eng_config/manga_library.json"
+LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get("LIB_PATH")
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
+FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
@@ -103,9 +105,6 @@ delete_manga_args = reqparse.RequestParser()
 delete_manga_args.add_argument(
     "manga_id", type=str, help="manga_id is required", required=True
 )
-manga_lib_paginate_args = reqparse.RequestParser()
-manga_lib_paginate_args.add_argument("start", type=str)
-manga_lib_paginate_args.add_argument("limit", type=str)
 
 Current_download = ""
 Q = None
@@ -614,6 +613,9 @@ class DogePost(Resource):
 
         Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype="0")
 
+        result = thumbnails_creator(manga_library[manga_id])
+        manga_library[manga_id] = result
+
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
             f.write(json_tmp)
@@ -624,15 +626,16 @@ class DogePost(Resource):
 class DogeLibrary(Resource):
     def post(self):
         global manga_library
-        args = manga_lib_paginate_args.parse_args()
+        start = request.args.get("start")
+        limit = request.args.get("limit")
 
         r = [item for item in manga_library.values()]
 
         pagination = libPagination(
             r,
-            "/api/dogemanga/lib",
-            args["start"] if args["start"] != "" else "1",
-            args["limit"] if args["limit"] else "10",
+            "",
+            start if start != "" else "1",
+            limit if limit else "10",
         )
 
         return {"data": pagination, "code": 200}
@@ -764,6 +767,16 @@ class DogeDeleteManga(Resource):
             print(e)
             return {"data": False, "code": 424}
 
+class ThumbnailGetter(Resource):
+    def get(self):
+        mid = request.args.get("mid")
+
+        try:
+            return send_file(f'/vanmanga/thumbnails/{mid}.jpg', mimetype='image/jpeg')
+        except Exception as e:
+            print(e)
+            return {"data": False, "code": 404}
+
 
 def api_loader(api_instance):
     print("########### 初始化API ############")
@@ -777,6 +790,7 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeReDownload, "/api/dogemanga/redownload")
     api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
     api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemanga")
+    api_instance.add_resource(ThumbnailGetter, "/api/dogemanga/thumbnail")
     print("########### API初始化完成 ############")
 
 

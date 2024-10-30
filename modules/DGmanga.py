@@ -2,7 +2,6 @@ import base64
 import random
 import re
 import gevent
-import gevent
 from collections import defaultdict
 
 # import requests
@@ -11,10 +10,9 @@ from DrissionPage import SessionPage
 from threading import current_thread
 
 from modules.MangaSite import MangaSite
-from modules.ua_producer import ua_producer
-from modules.make_path import path_exists_make
-from modules.generate_file_path import do_zip_compress
-from modules.chapter_title_reformat import chapter_title_reformat
+from utils.make_path import path_exists_make
+from utils.generate_file_path import do_zip_compress
+from utils.chapter_title_reformat import chapter_title_reformat
 
 
 class DGmanga(MangaSite):
