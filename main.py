@@ -49,7 +49,7 @@ LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
 KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
-KAVITA_ADMIN_OPDS = "" if os.environ.get("KAVITA_ADMIN_OPDS") is None else os.environ.get("KAVITA_ADMIN_OPDS")
+KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
@@ -462,6 +462,10 @@ def cfMonitor():
     drissionSession = SessionPage()
     drissionSession.get(url)
     response = drissionSession.response
+
+    # 防止网络波动，导致response为None
+    if not response:
+        cfMonitor()
 
     # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
     if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
