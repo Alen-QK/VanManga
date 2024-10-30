@@ -2,6 +2,7 @@ import base64
 
 import gevent.monkey
 
+from utils.lib_pagination import libPagination
 from utils.thumbnails_creator import thumbnails_creator
 
 gevent.monkey.patch_all()
@@ -47,6 +48,8 @@ scheduler = APScheduler()
 LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get("LIB_PATH")
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
+KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+KAVITA_ADMIN_OPDS = "" if os.environ.get("KAVITA_ADMIN_OPDS") is None else os.environ.get("KAVITA_ADMIN_OPDS")
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
@@ -517,39 +520,6 @@ def cfMonitor():
         ) = (False, "", "", None)
 
 
-def libPagination(lib, url, start, limit):
-    global manga_library
-
-    start = int(start)
-    limit = int(limit)
-    count = len(lib)
-
-    if count < start or limit < 0:
-        return 404
-
-    object = {}
-    object["start"] = start
-    object["limit"] = limit
-    object["count"] = count
-
-    if start == 1:
-        object["previous"] = ""
-    else:
-        previousStart = max(1, start - limit)
-        previousLimit = start - 1
-        object["previous"] = {"start": previousStart, "limit": previousLimit}
-
-    if start + limit > count:
-        object["next"] = ""
-    else:
-        nextStart = start + limit
-        object["next"] = {"start": nextStart, "limit": limit}
-
-    object["lib_paginate"] = lib[(start - 1) : (start - 1 + limit)]
-
-    return object
-
-
 class DogeSearch(Resource):
     global CF_dict
 
@@ -579,7 +549,6 @@ class DogeSearch(Resource):
             r["data"] = results
 
             return r
-
 
 class DogePost(Resource):
     def post(self):
