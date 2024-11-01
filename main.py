@@ -2,7 +2,9 @@ import base64
 
 import gevent.monkey
 
+from utils.kavita_lib_pull import kavita_lib_pull
 from utils.lib_pagination import libPagination
+from utils.tempTest import manga
 from utils.thumbnails_creator import thumbnails_creator
 
 gevent.monkey.patch_all()
@@ -48,23 +50,10 @@ scheduler = APScheduler()
 LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get("LIB_PATH")
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
-KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
-KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
+
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
-    if (
-        list(manga_library.values())
-        and "serialization" not in list(manga_library.values())[0].keys()
-    ):
-        serialization_make(LIB_PATH)
-    elif (
-        list(manga_library.values())
-        and "download_switch" not in list(manga_library.values())[0].keys()
-    ):
-        serialization_make(LIB_PATH)
-    else:
-        pass
 else:
     manga_library_content = {}
     os.mknod(LIB_PATH)  # ILLYA
@@ -108,6 +97,12 @@ delete_manga_args = reqparse.RequestParser()
 delete_manga_args.add_argument(
     "manga_id", type=str, help="manga_id is required", required=True
 )
+kavita_login_args = reqparse.RequestParser()
+kavita_login_args.add_argument("username", type=str)
+kavita_login_args.add_argument("password", type=str)
+token_refresh_args = reqparse.RequestParser()
+token_refresh_args.add_argument("jwt", type=str)
+token_refresh_args.add_argument("refreshToken", type=str)
 
 Current_download = ""
 Q = None
@@ -122,12 +117,6 @@ CF_dict = {
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
 # download_root_folder_path = "./downloaded" # ILLYA
-
-
-# @app.route("/init")
-# def hello():
-#     return redirect('http://localhost:5000/init')
-
 
 @app.route("/")
 def go_to_mainpage():
@@ -156,6 +145,12 @@ def dogemangaTask():
     boot_scanning(manga_library)
     print("\n########## Daily Update Task Over ##########\n")
 
+def kavitaTask():
+    global manga_library
+    print("\n########## Start Kavita Lib Update Task ##########\n")
+    manga_library = kavita_lib_pull(manga_library)
+    print("\n########## Kavita Lib Update Task Over ##########\n")
+
 
 def boot_scanning(manga_library):
     global CF_dict
@@ -178,6 +173,10 @@ def boot_scanning(manga_library):
         print("\n########## CloudFlare已关闭 ##########")
         if scheduler.get_job("CFMonitor"):
             scheduler.remove_job("CFMonitor")
+
+    if len(manga_library) == 0:
+        print("\n########## 漫画库长度为0，跳过此步骤 ##########")
+        return
 
     for manga in manga_library.values():
         print("\n扫描漫画：" + manga["manga_name"])
@@ -458,6 +457,16 @@ def re_zip_task():
 def cfMonitor():
     global CF_dict
 
+    if FLARESOLVERR_URL == "":
+        print("\n########### 未配置FlareSolverr，关闭cfMonitor功能 ############")
+        (
+            CF_dict["cf_activate"],
+            CF_dict["cf_clearance_value"],
+            CF_dict["cf_userAgent"],
+            CF_dict["updateTime"],
+        ) = (False, "", "", None)
+        return
+
     url = "https://dogemanga.com"
     drissionSession = SessionPage()
     drissionSession.get(url)
@@ -479,12 +488,12 @@ def cfMonitor():
             "maxTimeout": 60000,
             "returnOnlyCookies": True,
         }
-        response = requests.post("http://localhost:8191/v1", headers=headers, json=data)
+        response = requests.post(FLARESOLVERR_URL, headers=headers, json=data)
 
         # 与Bypasser连接的重试
         while json.loads(response.content)["status"] != "ok" and retryCount < 5:
             response = requests.post(
-                "http://localhost:8191/v1", headers=headers, json=data
+                FLARESOLVERR_URL, headers=headers, json=data
             )
             retryCount += 1
 
@@ -750,6 +759,85 @@ class ThumbnailGetter(Resource):
             print(e)
             return {"data": False, "code": 404}
 
+class KavitaLogin(Resource):
+    def post(self):
+        args = kavita_login_args.parse_args()
+        username = args["username"]
+        password = args["password"]
+        body = {
+            "username": username,
+            "password": password,
+            "apiKey": "",
+        }
+
+        KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+
+        if KAVITA_URL == "":
+            return {"data": "No Kavita Configuration, doesn't support login", "code": 434}
+
+        kavitaLoginAPI = "/api/Account/login"
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            response = requests.post(f"{KAVITA_URL}{kavitaLoginAPI}", json=json.dumps(body), headers=headers)
+            apiKey = response.json()["apiKey"]
+            jwt = response.json()["token"]
+            refreshToken = response.json()["refreshToken"]
+
+            loginUrl = f"{KAVITA_URL}/login?apiKey={apiKey}"
+
+            return {
+                "data": {
+                    "apiKey": apiKey,
+                    "jwt": jwt,
+                    "refreshToken": refreshToken,
+                    "loginUrl": loginUrl,
+                },
+                "code": 200,
+            }
+        except Exception as e:
+            print(e)
+            return {"data": "Login Failed", "code": 500}
+
+
+class KavitaRefreshToken(Resource):
+    def post(self):
+        args = token_refresh_args.parse_args()
+        jwt = args["jwt"]
+        refreshToken = args["refreshToken"]
+        body = {
+            "token": jwt,
+            "refreshToken": refreshToken,
+        }
+
+        KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+
+        if KAVITA_URL == "":
+            return {"data": "No Kavita Configuration, doesn't support refresh token", "code": 434}
+
+        kavitaRefreshTokenAPI = "/api/Account/refresh-token"
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            response = requests.post(
+                f"{KAVITA_URL}{kavitaRefreshTokenAPI}",
+                headers=headers,
+                json=body,
+            )
+
+            jwt = response.json()["token"]
+            refreshToken = response.json()["refreshToken"]
+
+            return {
+                "data": {
+                    "jwt": jwt,
+                    "refreshToken": refreshToken,
+                },
+                "code": 200
+            }
+        except Exception as e:
+            print(e)
+            return {"data": "Refresh Token Failed", "code": 500}
 
 def api_loader(api_instance):
     print("########### 初始化API ############")
@@ -764,6 +852,8 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
     api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemanga")
     api_instance.add_resource(ThumbnailGetter, "/api/dogemanga/thumbnail")
+    api_instance.add_resource(KavitaLogin, "/api/kavita/login")
+    api_instance.add_resource(KavitaRefreshToken, "/api/kavita/refreshtoken")
     print("########### API初始化完成 ############")
 
 
@@ -791,6 +881,9 @@ gevent.sleep(0)
 print("\nbootScanning完成，即将开始安排计划任务上线")
 scheduler.add_job(
     id="Dogemanga task", func=dogemangaTask, trigger="cron", hour="1", minute="30"
+)
+scheduler.add_job(
+    id="Kavita_pull", func=kavitaTask, trigger="interval", hours="6"
 )
 scheduler.start()
 print("\n计划任务挂载")

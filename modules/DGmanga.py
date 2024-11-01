@@ -106,11 +106,17 @@ class DGmanga(MangaSite):
             # 检查漫画的连载状态
             site_card = site_main_content.find("div", class_="site-card")
             manga_status = site_card.find("small", class_="text-muted").text.split("\n")
-            serialization_text, recent_update = (
-                manga_status[1].split("：")[1],
-                manga_status[3].split("：")[1],
-            )
-            serialization = 0 if serialization_text == "連載中" else 1
+            # serialization_text, recent_update = (
+            #     manga_status[1].split("：")[1],
+            #     manga_status[3].split("：")[1],
+            # )
+            # serialization = 0 if serialization_text == "連載中" else 1
+            serialization = 1
+
+            for ele in manga_status:
+                if "連載中" in ele:
+                    serialization = 0
+                    break
 
             tab_content = soup.select(".tab-content > #site-manga__tab-pane-all")[0]
             # 它的长度之后对于last epi的计算有作用
