@@ -4,7 +4,6 @@ import gevent.monkey
 
 from utils.kavita_lib_pull import kavita_lib_pull
 from utils.lib_pagination import libPagination
-from utils.tempTest import manga
 from utils.thumbnails_creator import thumbnails_creator
 
 gevent.monkey.patch_all()
@@ -47,10 +46,12 @@ api = Api(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 scheduler = APScheduler()
 
-LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get("LIB_PATH")
+LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get(
+    "LIB_PATH")
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
-
+KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
@@ -74,6 +75,9 @@ confirm_post_args.add_argument(
 confirm_post_args.add_argument(
     "submit_sign", type=str, help="submit_sign of submission is required", required=True
 )
+lib_post_args = reqparse.RequestParser()
+lib_post_args.add_argument("start", type=str)
+lib_post_args.add_argument("limit", type=str)
 # 单章下载API
 redownload_post_args = reqparse.RequestParser()
 redownload_post_args.add_argument(
@@ -116,6 +120,8 @@ CF_dict = {
 }
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
+
+
 # download_root_folder_path = "./downloaded" # ILLYA
 
 @app.route("/")
@@ -126,11 +132,11 @@ def go_to_mainpage():
 @app.route("/<path:fallback>")
 def fallback(fallback):
     if (
-        fallback.startswith("css/")
-        or fallback.startswith("js/")
-        or fallback.startswith("img/")
-        or fallback == "favicon.ico"
-        or fallback.startswith("fonts/")
+            fallback.startswith("css/")
+            or fallback.startswith("js/")
+            or fallback.startswith("img/")
+            or fallback == "favicon.ico"
+            or fallback.startswith("fonts/")
     ):
         return app.send_static_file(fallback)
     elif fallback.startswith("mainpage/"):
@@ -144,6 +150,7 @@ def dogemangaTask():
     print("\n########## Start Daily Update Task ##########\n")
     boot_scanning(manga_library)
     print("\n########## Daily Update Task Over ##########\n")
+
 
 def kavitaTask():
     global manga_library
@@ -173,9 +180,11 @@ def boot_scanning(manga_library):
         print("\n########## CloudFlare已关闭 ##########")
         if scheduler.get_job("CFMonitor"):
             scheduler.remove_job("CFMonitor")
+        else:
+            pass
 
     if len(manga_library) == 0:
-        print("\n########## 漫画库长度为0，跳过此步骤 ##########")
+        print("\n########## 漫画库长度为0，跳过初始化 ##########")
         return
 
     for manga in manga_library.values():
@@ -498,8 +507,8 @@ def cfMonitor():
             retryCount += 1
 
         if (
-            json.loads(response.content)["status"] != "ok"
-            and json.loads(response.content)["message"] != "Challenge solved!"
+                json.loads(response.content)["status"] != "ok"
+                and json.loads(response.content)["message"] != "Challenge solved!"
         ):
             print(
                 f"########### 未能从Bypasser获取到cookies，运行任务失败，需要检查链接 ############"
@@ -539,6 +548,9 @@ class DogeSearch(Resource):
     def get(self):
         args = request.args
         search_name = args["manga_name"]
+
+        print(f"\nSearching API is working, search name is {search_name}")
+
         r = dict()
 
         if search_name == "":
@@ -563,12 +575,16 @@ class DogeSearch(Resource):
 
             return r
 
+
 class DogePost(Resource):
     def post(self):
         global manga_library
         global Q
         args = confirm_post_args.parse_args()
         manga_object = ast.literal_eval(args["manga_object"])
+
+        print(f"\nManga submitting API is working, manga_object is:\n{manga_object}")
+
         submit_sign = args["submit_sign"]
         manga_id = manga_object["manga_id"]
 
@@ -608,8 +624,9 @@ class DogePost(Resource):
 class DogeLibrary(Resource):
     def post(self):
         global manga_library
-        start = request.args.get("start")
-        limit = request.args.get("limit")
+        args = lib_post_args.parse_args()
+        start = args["start"]
+        limit = args["limit"]
 
         r = [item for item in manga_library.values()]
 
@@ -696,6 +713,7 @@ class DogeChangeDownload(Resource):
         args = change_download_args.parse_args()
         manga_id = args["manga_id"]
         # switch = args["switch"]  # switch = 0: 未完结， switch = 1: 已完结
+        print(f"\nDownload switch API is working, manga_id:{manga_id}")
 
         try:
             switch = manga_library[manga_id]["download_switch"]
@@ -724,6 +742,7 @@ class DogeDeleteManga(Resource):
     def delete(self):
         args = delete_manga_args.parse_args()
         manga_id = args["manga_id"]
+        print(f"\nDelete API is working, manga_id:{manga_id}")
 
         queue_ids = [task["manga_id"] for task in Q.get_all_tasks()]
 
@@ -749,6 +768,7 @@ class DogeDeleteManga(Resource):
             print(e)
             return {"data": False, "code": 424}
 
+
 class ThumbnailGetter(Resource):
     def get(self):
         mid = request.args.get("mid")
@@ -758,6 +778,12 @@ class ThumbnailGetter(Resource):
         except Exception as e:
             print(e)
             return {"data": False, "code": 404}
+
+
+class KavitaStatus(Resource):
+    def get(self):
+        return {"data": True, "code": 200} if KAVITA_URL and KAVITA_ADMIN_APIKEY else {"data": False, "code": 404}
+
 
 class KavitaLogin(Resource):
     def post(self):
@@ -770,7 +796,7 @@ class KavitaLogin(Resource):
             "apiKey": "",
         }
 
-        KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+        print(f"\nKavita Login API is working, username:{username}")
 
         if KAVITA_URL == "":
             return {"data": "No Kavita Configuration, doesn't support login", "code": 434}
@@ -779,7 +805,7 @@ class KavitaLogin(Resource):
         headers = {"Content-Type": "application/json"}
 
         try:
-            response = requests.post(f"{KAVITA_URL}{kavitaLoginAPI}", json=json.dumps(body), headers=headers)
+            response = requests.post(f"{KAVITA_URL}{kavitaLoginAPI}", json=body, headers=headers)
             apiKey = response.json()["apiKey"]
             jwt = response.json()["token"]
             refreshToken = response.json()["refreshToken"]
@@ -810,8 +836,6 @@ class KavitaRefreshToken(Resource):
             "refreshToken": refreshToken,
         }
 
-        KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
-
         if KAVITA_URL == "":
             return {"data": "No Kavita Configuration, doesn't support refresh token", "code": 434}
 
@@ -839,6 +863,7 @@ class KavitaRefreshToken(Resource):
             print(e)
             return {"data": "Refresh Token Failed", "code": 500}
 
+
 def api_loader(api_instance):
     print("########### 初始化API ############")
     api_instance.add_resource(DogeSearch, "/api/dogemanga/search")
@@ -852,6 +877,7 @@ def api_loader(api_instance):
     api_instance.add_resource(DogeChangeDownload, "/api/dogemanga/downloadswitch")
     api_instance.add_resource(DogeDeleteManga, "/api/dogemanga/deletemanga")
     api_instance.add_resource(ThumbnailGetter, "/api/dogemanga/thumbnail")
+    api_instance.add_resource(KavitaStatus, "/api/kavita/status")
     api_instance.add_resource(KavitaLogin, "/api/kavita/login")
     api_instance.add_resource(KavitaRefreshToken, "/api/kavita/refreshtoken")
     print("########### API初始化完成 ############")
@@ -878,12 +904,15 @@ boot_manga_lib = copy.copy(manga_library)
 gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
 gevent.sleep(0)
 
-print("\nbootScanning完成，即将开始安排计划任务上线")
+if len(manga_library != 0) and KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
+    kavitaTask()
+
+print("\nbootScanning完成，开始设置计划任务......")
 scheduler.add_job(
     id="Dogemanga task", func=dogemangaTask, trigger="cron", hour="1", minute="30"
 )
 scheduler.add_job(
-    id="Kavita_pull", func=kavitaTask, trigger="interval", hours="6"
+    id="Kavita_pull", func=kavitaTask, trigger="interval", hours=6
 )
 scheduler.start()
 print("\n计划任务挂载")

@@ -125,7 +125,7 @@ class DGmanga(MangaSite):
             return [len(tab_content), serialization]
         except Exception as e:
             print(e)
-            return [0, 501]
+            return [501, 0]
 
     def generate_chapters_array(
         self, start, end, download_root_folder_path, manga_name, CF_dict

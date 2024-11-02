@@ -5,7 +5,7 @@ def libPagination(lib, url, start, limit):
     count = len(lib)
 
     if count < start or limit < 0:
-        return 404
+        return "起始索引不能大于漫画库总长，limit不能小于0"
 
     object = {}
     object["start"] = start
