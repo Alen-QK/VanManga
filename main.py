@@ -333,6 +333,10 @@ def confirm_comic_task(manga_id):
                         "page."
                     )
 
+                if res[0] == 503:
+                    print(f"单章连续抓取失败超过10次，跳过该章节: {res[1]}")
+                    continue
+
                 if res[2]:
                     tmp["manga_id"], tmp["newest_epi"], tmp["newest_epi_name"] = (
                         manga_id,

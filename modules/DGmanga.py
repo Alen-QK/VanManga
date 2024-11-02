@@ -20,6 +20,7 @@ class DGmanga(MangaSite):
         self.manga_id = manga_id
         self.target_folder_path = ""
         self.Current_idx = float("-inf")
+        self.download_failed_count = 0
 
     def search_manga(self, search_name, CF_dict):
         # headers = {"User-Agent": ua_producer()}
@@ -248,7 +249,7 @@ class DGmanga(MangaSite):
                     )
                 except Exception as e:
                     print(e)
-                    return 502
+                    return 503, chapter_title
 
                 for img_tag in img_collection:
                     try:
@@ -263,7 +264,10 @@ class DGmanga(MangaSite):
                 print(
                     f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
                 )
-                self.download_img(chapter_title, img_array, Error_dict, CF_dict)
+                result = self.download_img(chapter_title, img_array, Error_dict, CF_dict)
+
+                if not result:
+                    return 503
 
                 if self.Current_idx < idx:
                     self.Current_idx = idx
@@ -378,6 +382,9 @@ class DGmanga(MangaSite):
         failed_array = []
 
         for img in img_array:
+            if self.download_failed_count >= 10:
+                return False
+
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
             while Error_dict["g_error_flag"]:
                 # print('page线程停止中')
@@ -434,6 +441,7 @@ class DGmanga(MangaSite):
                 print(e)
                 print(target_link)
                 failed_array.append([img_title, target_link])
+                self.download_failed_count += 1
                 continue
 
         for retry_item in failed_array:
@@ -489,3 +497,5 @@ class DGmanga(MangaSite):
         print(f"########### {chapter_title} 压缩开始！ ############")
         do_zip_compress(folder_path)
         print(f"########### {chapter_title} 压缩完成！ ############")
+
+        return True
