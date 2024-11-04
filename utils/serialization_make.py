@@ -49,3 +49,5 @@ def serialization_make():
         f.write(json_tmp)
 
     print("done")
+
+serialization_make()

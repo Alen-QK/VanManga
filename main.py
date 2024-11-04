@@ -23,7 +23,6 @@ from utils.make_manga_object import make_manga_object
 from utils.TaskQueue import TaskQueue
 from utils.re_zip_downloaded import re_zip_run
 from utils.duplicate_check import duplicate_check
-from utils.serialization_make import serialization_make
 
 from flask import Flask, render_template, send_file
 from flask_socketio import SocketIO
@@ -52,6 +51,7 @@ LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
 KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
 KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
+NUMBER_OF_WORKERS = 2 if os.environ.get("NUMBER_OF_WORKERS") is None else int(os.environ.get("NUMBER_OF_WORKERS"))
 
 if os.path.exists(LIB_PATH):
     manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
@@ -161,7 +161,7 @@ def kavitaTask():
 
 def boot_scanning(manga_library):
     global CF_dict
-    print("########## 开始bootScanning ##########")
+    print("########## 开始每日任务 ##########")
 
     # 检查Cloudflare状态
     print("\n########## 检查CloudFlare状态..... ##########")
@@ -209,8 +209,6 @@ def boot_scanning(manga_library):
                 current_manga_length, serialization = DG.check_manga_length(CF_dict)
 
                 if current_manga_length == 501:
-                    # print('\nMight meet human check, shutdown the task.\n')
-                    # return 'Might meet human check, shutdown the task.'
                     print("该漫画在源暂时不可用，暂时跳过更新\n")
                     continue
 
@@ -234,7 +232,7 @@ def boot_scanning(manga_library):
         # 因为初始化扫描本来是不限速的，但是如果此时加入了新的下载任务，那么同时访问多个源地址可能就会触发block，安全起见，应该在每扫描完一个后暂停1-3s。
         gevent.sleep(1)
 
-        print("\n########## bootScanning完成 ##########")
+    print("\n########## 每日任务完成 ##########")
 
 
 # 实际上后台下载选定漫画的task
@@ -289,7 +287,7 @@ def confirm_comic_task(manga_id):
         # else:
         #     gevent.wait()
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=NUMBER_OF_WORKERS) as executor:
             finish = list()
 
             for idx, chapter in enumerate(chapters_array):
@@ -399,7 +397,7 @@ def download_chapter_task(chapter):
 
     socketio.emit("downloading_info", manga_id)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=NUMBER_OF_WORKERS) as executor:
         finish = list()
 
         for chp in selected_array:
@@ -908,7 +906,7 @@ boot_manga_lib = copy.copy(manga_library)
 gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
 gevent.sleep(0)
 
-if len(manga_library != 0) and KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
+if len(manga_library) != 0 and KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
     kavitaTask()
 
 print("\nbootScanning完成，开始设置计划任务......")

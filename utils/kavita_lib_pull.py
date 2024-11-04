@@ -1,6 +1,7 @@
 import requests
 import os
 
+
 def kavita_lib_pull(lib):
     KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
     KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
@@ -39,9 +40,17 @@ def kavita_lib_pull(lib):
 
     for series in kavitaLib:
         folderPath = series["folderPath"]
+
+        if "$" not in folderPath:
+            continue
+
         manga_id = folderPath.split("$")[1]
         kavitaLib_id = series["id"]
-        lib[manga_id]["kavita_url"] =  f"{KAVITA_URL}/library/{KAVITA_LIB_ID}/series/{kavitaLib_id}"
 
+        try:
+            lib[manga_id]["kavita_url"] = f"{KAVITA_URL}/library/{KAVITA_LIB_ID}/series/{kavitaLib_id}"
+        except Exception as e:
+            print(e)
+            continue
 
     return lib

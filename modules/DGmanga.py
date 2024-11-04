@@ -264,6 +264,8 @@ class DGmanga(MangaSite):
                 print(
                     f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
                 )
+
+                self.download_failed_count = 0
                 result = self.download_img(chapter_title, img_array, Error_dict, CF_dict)
 
                 if not result:
