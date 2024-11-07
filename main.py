@@ -2,6 +2,7 @@ import base64
 
 import gevent.monkey
 
+from utils.flaresolverr_bypasser import flaresolverr_bypasser
 from utils.kavita_lib_pull import kavita_lib_pull
 from utils.lib_pagination import libPagination
 from utils.thumbnails_creator import thumbnails_creator
@@ -489,48 +490,7 @@ def cfMonitor():
 
     # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
     if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
-        retryCount = 0
-        CF_dict["cf_activate"] = True
-
-        headers = {"Content-Type": "application/json"}
-        data = {
-            "cmd": "request.get",
-            "url": url,
-            "maxTimeout": 60000,
-            "returnOnlyCookies": True,
-        }
-        response = requests.post(FLARESOLVERR_URL, headers=headers, json=data)
-
-        # 与Bypasser连接的重试
-        while json.loads(response.content)["status"] != "ok" and retryCount < 5:
-            response = requests.post(
-                FLARESOLVERR_URL, headers=headers, json=data
-            )
-            retryCount += 1
-
-        if (
-                json.loads(response.content)["status"] != "ok"
-                and json.loads(response.content)["message"] != "Challenge solved!"
-        ):
-            print(
-                f"########### 未能从Bypasser获取到cookies，运行任务失败，需要检查链接 ############"
-            )
-            return
-
-        content = json.loads(response.content)
-        solution = content["solution"]
-        # 更新CF的相关信息，用于抓取任务
-        for item in solution["cookies"]:
-            if item["name"] == "cf_clearance":
-                CF_dict["cf_clearance_value"] = item["value"]
-
-        (
-            CF_dict["cf_userAgent"],
-            CF_dict["updateTime"],
-        ) = (
-            solution["userAgent"],
-            datetime.datetime.now(),
-        )
+        CF_dict = flaresolverr_bypasser(CF_dict, url)
         print(f"\n########### 已经更新CF的验证信息 ############")
 
     # 否则说明dogemanga关闭了CF的检测，关闭CF_dict和绕过的所有相关机制
