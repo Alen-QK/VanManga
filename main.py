@@ -277,17 +277,6 @@ def confirm_comic_task(manga_id):
             print("\nMight meet human check, shutdown the task.\n")
             return "Might meet human check, shutdown the task."
 
-        # pool = ThreadPool(2)
-        #
-        # for idx, chapter in enumerate(chapters_array):
-        #     pool.spawn(DG.scrape_each_chapter, chapter, manga_library, Error_dict, start, idx, app)
-        #     gevent.sleep(0)
-
-        # if gevent.getcurrent() is not gevent.hub.get_hub().parent:
-        #     pass
-        # else:
-        #     gevent.wait()
-
         with concurrent.futures.ThreadPoolExecutor(max_workers=NUMBER_OF_WORKERS) as executor:
             finish = list()
 
@@ -866,7 +855,7 @@ boot_manga_lib = copy.copy(manga_library)
 gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
 gevent.sleep(0)
 
-if len(manga_library) != 0 and KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
+if KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
     kavitaTask()
 
 print("\nbootScanning完成，开始设置计划任务......")
