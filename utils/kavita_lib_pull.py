@@ -8,7 +8,7 @@ def kavita_lib_pull(lib):
     KAVITA_LIB_ID = "1" if os.environ.get("KAVITA_LIB_ID") is None else os.environ.get("KAVITA_LIB_ID")
 
     if not KAVITA_URL or not KAVITA_ADMIN_APIKEY:
-        print("\n########## 未配置Kavita环境，跳过该操作 ##########")
+        print("########## 未配置Kavita环境，跳过该操作 ##########")
         return
 
     authEndpoint = "/api/Plugin/authenticate"
@@ -19,7 +19,7 @@ def kavita_lib_pull(lib):
         response.raise_for_status()
         jwt = response.json()["token"]
     except requests.exceptions.RequestException as e:
-        print("\n获取Kavita授权失败：", e)
+        print("获取Kavita授权失败：", e)
         return
 
     # 获取指定lib id对应的所有series的信息
@@ -35,7 +35,7 @@ def kavita_lib_pull(lib):
         response = requests.post(seriesUrl, headers=headers, json=body)
         kavitaLib = response.json()
     except requests.exceptions.RequestException as e:
-        print("\n获取Kavita仓库失败： ", e)
+        print("获取Kavita仓库失败： ", e)
         return
 
     for series in kavitaLib:

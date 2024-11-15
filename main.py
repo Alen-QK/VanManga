@@ -55,7 +55,10 @@ KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else o
 NUMBER_OF_WORKERS = 2 if os.environ.get("NUMBER_OF_WORKERS") is None else int(os.environ.get("NUMBER_OF_WORKERS"))
 
 if os.path.exists(LIB_PATH):
-    manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
+    try:
+        manga_library = json.load(open(LIB_PATH, encoding="utf-8"))
+    except Exception as e:
+        print(e)
 else:
     manga_library_content = {}
     os.mknod(LIB_PATH)  # ILLYA
@@ -473,9 +476,9 @@ def cfMonitor():
     drissionSession.get(url)
     response = drissionSession.response
 
-    # 防止网络波动，导致response为None
-    if not response:
-        cfMonitor()
+    # # 防止网络波动，导致response为None
+    # if not response:
+    #     cfMonitor()
 
     # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
     if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
