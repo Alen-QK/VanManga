@@ -9,7 +9,7 @@ def kavita_lib_pull(lib):
 
     if not KAVITA_URL or not KAVITA_ADMIN_APIKEY:
         print("########## 未配置Kavita环境，跳过该操作 ##########")
-        return
+        return lib
 
     authEndpoint = "/api/Plugin/authenticate"
     authUrl = f"{KAVITA_URL}{authEndpoint}?apiKey={KAVITA_ADMIN_APIKEY}&pluginName=pythonScanScript"
@@ -20,7 +20,7 @@ def kavita_lib_pull(lib):
         jwt = response.json()["token"]
     except requests.exceptions.RequestException as e:
         print("获取Kavita授权失败：", e)
-        return
+        return lib
 
     # 获取指定lib id对应的所有series的信息
     headers = {
@@ -36,7 +36,7 @@ def kavita_lib_pull(lib):
         kavitaLib = response.json()
     except requests.exceptions.RequestException as e:
         print("获取Kavita仓库失败： ", e)
-        return
+        return lib
 
     for series in kavitaLib:
         folderPath = series["folderPath"]

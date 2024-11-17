@@ -53,13 +53,13 @@ class DGmanga(MangaSite):
                 manga_dict = defaultdict()
                 card = site_cards[i]
                 manga_id = card["data-manga-id"]
-                manga_name = card.find("h5", class_="card-title").text.replace("\n", "")
+                manga_name = card.find("h5", class_="card-title").text.replace("\n", "").strip()
                 artist_name = card.find("h6", class_="card-subtitle").text.replace(
                     "\n", ""
-                )
+                ).strip()
                 newest_epi = card.find("li", class_="list-group-item").text.replace(
                     "\n", ""
-                )
+                ).strip()
                 thumbnail_link = card.find("img", class_="card-img-top")["src"]
 
                 if CF_dict["cf_activate"]:

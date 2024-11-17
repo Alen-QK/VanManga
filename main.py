@@ -1,5 +1,3 @@
-import base64
-
 import gevent.monkey
 
 from utils.flaresolverr_bypasser import flaresolverr_bypasser
@@ -565,8 +563,9 @@ class DogePost(Resource):
 
         Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype="0")
 
-        result = thumbnails_creator(manga_library[manga_id])
-        manga_library[manga_id] = result
+        # For thumbnails
+        # result = thumbnails_creator(manga_library[manga_id])
+        # manga_library[manga_id] = result
 
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -576,6 +575,14 @@ class DogePost(Resource):
 
 
 class DogeLibrary(Resource):
+    def post(self):
+        global manga_library
+
+        r = [item for item in manga_library.values()]
+
+        return {"data": r, "code": 200}
+
+class Pagination(Resource):
     def post(self):
         global manga_library
         args = lib_post_args.parse_args()
@@ -834,6 +841,7 @@ def api_loader(api_instance):
     api_instance.add_resource(KavitaStatus, "/api/kavita/status")
     api_instance.add_resource(KavitaLogin, "/api/kavita/login")
     api_instance.add_resource(KavitaRefreshToken, "/api/kavita/refreshtoken")
+    api_instance.add_resource(Pagination, "/api/dogemanga/libpagination")
     print("########### API初始化完成 ############")
 
 
