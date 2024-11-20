@@ -564,8 +564,8 @@ class DogePost(Resource):
         Q.add_task(target=confirm_comic_task, manga_id=manga_id, dtype="0")
 
         # For thumbnails
-        # result = thumbnails_creator(manga_library[manga_id])
-        # manga_library[manga_id] = result
+        result = thumbnails_creator(manga_library[manga_id])
+        manga_library[manga_id] = result
 
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
