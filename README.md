@@ -17,13 +17,14 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
   
 ## VanManga有什么功能？
 1. 🔍 **漫画搜索** - 通过在搜索框中输入漫画名称，你可以获取前十个最相关的搜索结果，并选择你喜欢的漫画进行下载。
-2. ⚠️ **漫画管理** - 为保证本地资源精简不重复，应用会在提交下载任务时自动检查已下载漫画中是否有相似资源，并返回结果以供用户参考。
+2. ⚠️ **漫画管理** - 支持在搜索阶段对漫画库查重，避免重复资源，同时支持手动管理漫画自动更新和删除。
 3. 📋 **下载队列** - 漫画会根据下载任务提交顺序进入队列等待，并依序下载。
 4. 🔄 **每日自动更新** - 应用会每日定时扫描所有已下载漫画，检查并自动下载最新的更新内容。
 5. 🖥️ **下载管理面板** - 在管理面板中，你可以检视所有的已下载资源。并且可以通过WebSocket返回的信息实时跟踪当前下载任务的进度和漫画下载状态。
 6. 🗃️ **重新打包漫画文件** - 有外部资源？抑或是本地资源文件结构有问题？没关系，可以使用本地重新打包功能对资源文件夹下的所有漫画文件进行重新打包。
 7. 🔧 **重新下载指定内容** - 想要对下载可能失败的单章漫画进行修复？没问题，使用单章重新下载的功能你可以自由的选择任意漫画的任何章节进行重下。
-8. **也许在未来我们会添加更多新功能！**
+8. ↗️ **整合Kavita外链跳转** - 支持与Kavita的账户绑定，设置后可以在管理界面点击跳转至Kavita对应漫画界面。 
+9**也许在未来我们会添加更多新功能！**
 
 ## 如何安装？
 
@@ -36,12 +37,19 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
    ```
 3. 为了确保你的 Docker 容器可以正常运行，请按照如下介绍设置 环境变量 \ 文件路径映射 \ 端口:
    - 环境变量
-     > **PYTHONUNBUFFERED**: 用于使 Docker container 可以输出应用的日志记录，默认值是 1  
-     >  **MANGA_BASE_URL**: 你用于连接后端的 URL，默认值是 http://localhost:5000. 如果你正在你的 Docker 中使用 bridge，你需要把'localhost'改成你的 bridge 的内部 IP。  
-     >  **MANGA_BASE_WEBSOCKET_URL**: 你对外暴露的服务器 URL, 主要用于 WebSocket 服务, 默认值是 http://localhost:5000.
+     >  **PYTHONUNBUFFERED**: 用于使 Docker container 可以输出应用的日志记录，默认值是 1  
+       **MANGA_BASE_URL**: 你用于连接后端的 URL，默认值是 http://localhost:5000. 如果你正在你的 Docker 中使用 bridge，你需要把'localhost'改成你的 bridge 的内部 IP。  
+       **MANGA_BASE_WEBSOCKET_URL**: 你对外暴露的服务器 URL, 主要用于 WebSocket 服务, 默认值是 http://localhost:5000.  
+       **KAVITA_BASE_URL - 可选**: 你Kavita服务器的主机内部地址，用于允许服务器从内网连接。如果正在使用DSM，请输入桥接路径。示例：http://192.168.0.1:5000  
+       **KAVITA_EXPOSE_URL - 可选**： 你Kavita服务器外部暴露地址，用于允许前端页面向Kavita服务跳转。示例：https://kavita:5000 
+       **KAVITA_ADMIN_APIKEY - 可选**： 你的Kavita管理员ApiKey（必须是管理员权限），可从Kavita管理员“设置面板-API密钥/OPDS”一项找到。  
+       **KAVITA_LIB_ID - 可选**： 你准备连接的Kavita库序号，默认值是1，仅在需要额外指定时推荐设置。
+       **FLARESOLVERR_URL - 可选**： 你的[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)内部地址，允许服务器连接FlareSolverr对漫画源的人机检查进行规避，如果正在使用DSM，请输入桥接路径。额外推荐版本为[21hsmw-flaresolverr](https://github.com/21hsmw/FlareSolverr)
+       **NUMBER_OF_WORKERS - 可选**： 服务器同时并发下载章节的最大数量，默认值是2。默认值即推荐值，最大请不要超过4 or 5，非常容易被侦测并block。
    - 文件路径映射
      > { 你的主机上想要设置为漫画下载库的物理地址 } <==> /downloaded  
-     >  { 你的主机上想要设置为漫画 config 文件夹的物理地址 } <==> /vanmanga/eng_config
+       { 你的主机上想要设置为漫画 config 文件夹的物理地址 } <==> /vanmanga/eng_config  
+       { 你的主机上想要设置为漫画封面文件夹的物理地址} <==> /vanmanga/thumbnails
    - 端口
      > 5000:5000 /_ 你也可以映射任何你想映射的端口 _/
      > 你可以直接复制并使用如下命令，或者在 Docker Desktop 的 GUI 中直接设置相关参数:
@@ -50,13 +58,23 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
    -e PYTHONUNBUFFERED=1 \
    -e MANGA_BASE_URL=http://localhost:5000  \
    -e MANGA_BASE_WEBSOCKET_URL=http://localhost:5000  \
+   -e KAVITA_BASE_URL=/*Kavita内部地址*/ \
+   -e KAVITA_EXPOSE_URL=/*Kavita外部地址*/ \
+   -e KAVITA_ADMIN_APIKEY=/*Kavita管理员ApiKey*/ \
+   -e KAVITA_LIB_ID=/*Kavita库标号*/ \
+   -e FLARESOLVERR_URL=/*FlareSolverr服务器地址*/ \
+   -e NUMBER_OF_WORKERS=2 \
    --mount type=bind,source=/*你的主机上想要设置为漫画下载库的物理地址*/,target=/downloaded \
    --mount type=bind,source=/*你的主机上想要设置为漫画config文件夹的物理地址*/,target=/vanmanga/eng_config \
+   --mount type=bind,source=/*你的主机上想要设置为漫画封面文件夹的物理地址*/,target=/vanmanga/thumbnails \
    -p 5000:5000
    wzl778633/vanislord_manga:latest
    ```
 4. 当容器开始运行后，服务器会自动进行初始化。你可以在 Docker container 的日志记录中查看服务器初始化的状态。
-   - 初始化的目的在于，扫描 config 文件夹下的`manga_library.json`，将所有的已经存在的漫画记录都添加到服务器中，同时检查每部漫画是否有更新。
+   - 初始化的目的在于:
+   1. 扫描 config 文件夹下的`manga_library.json`，将所有的已经存在的漫画记录都添加到服务器中，同时检查每部漫画是否有更新。
+   2. 检查Kavita配置，在允许的情况下连接Kavita服务器获取meta data。
+   3. 检查FlareSolverr配置，在允许的情况下连接Bypasser服务器，用于绕过CloudFlare检查。
 
 ## 如何使用？
 

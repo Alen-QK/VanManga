@@ -48,7 +48,8 @@ LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH
     "LIB_PATH")
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
-KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
+KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
 KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
 NUMBER_OF_WORKERS = 2 if os.environ.get("NUMBER_OF_WORKERS") is None else int(os.environ.get("NUMBER_OF_WORKERS"))
 
@@ -189,7 +190,7 @@ def boot_scanning(manga_library):
         print("\n########## 漫画库长度为0，跳过初始化 ##########")
         return
 
-    for manga in manga_library.values():
+    for manga in reversed(manga_library.values()):
         print("\n扫描漫画：" + manga["manga_name"])
 
         if manga["completed"] == False:
@@ -743,7 +744,7 @@ class ThumbnailGetter(Resource):
 
 class KavitaStatus(Resource):
     def get(self):
-        return {"data": True, "code": 200} if KAVITA_URL and KAVITA_ADMIN_APIKEY else {"data": False, "code": 404}
+        return {"data": True, "code": 200} if KAVITA_BASE_URL and KAVITA_EXPOSE_URL and KAVITA_ADMIN_APIKEY else {"data": False, "code": 404}
 
 
 class KavitaLogin(Resource):
@@ -759,19 +760,19 @@ class KavitaLogin(Resource):
 
         print(f"\nKavita Login API is working, username:{username}")
 
-        if KAVITA_URL == "":
+        if KAVITA_BASE_URL == "" or KAVITA_EXPOSE_URL == "":
             return {"data": "No Kavita Configuration, doesn't support login", "code": 434}
 
         kavitaLoginAPI = "/api/Account/login"
         headers = {"Content-Type": "application/json"}
 
         try:
-            response = requests.post(f"{KAVITA_URL}{kavitaLoginAPI}", json=body, headers=headers)
+            response = requests.post(f"{KAVITA_BASE_URL}{kavitaLoginAPI}", json=body, headers=headers)
             apiKey = response.json()["apiKey"]
             jwt = response.json()["token"]
             refreshToken = response.json()["refreshToken"]
 
-            loginUrl = f"{KAVITA_URL}/login?apiKey={apiKey}"
+            loginUrl = f"{KAVITA_EXPOSE_URL}/login?apiKey={apiKey}"
 
             return {
                 "data": {
@@ -797,7 +798,7 @@ class KavitaRefreshToken(Resource):
             "refreshToken": refreshToken,
         }
 
-        if KAVITA_URL == "":
+        if KAVITA_EXPOSE_URL == "":
             return {"data": "No Kavita Configuration, doesn't support refresh token", "code": 434}
 
         kavitaRefreshTokenAPI = "/api/Account/refresh-token"
@@ -805,7 +806,7 @@ class KavitaRefreshToken(Resource):
 
         try:
             response = requests.post(
-                f"{KAVITA_URL}{kavitaRefreshTokenAPI}",
+                f"{KAVITA_EXPOSE_URL}{kavitaRefreshTokenAPI}",
                 headers=headers,
                 json=body,
             )
@@ -866,7 +867,7 @@ boot_manga_lib = copy.copy(manga_library)
 gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
 gevent.sleep(0)
 
-if KAVITA_URL is not None and KAVITA_ADMIN_APIKEY is not None:
+if KAVITA_BASE_URL is not None and KAVITA_EXPOSE_URL is not None and KAVITA_ADMIN_APIKEY is not None:
     kavitaTask()
 
 print("\nbootScanning完成，开始设置计划任务......")

@@ -1,5 +1,6 @@
 import json
 import base64
+import os
 
 from make_path import path_exists_make
 
@@ -7,6 +8,8 @@ def thumbnails_creator1(manga_object):
     manga_id = manga_object["manga_id"]
     image_data_base64 = manga_object["thumbnail"]
     image_data = base64.b64decode(image_data_base64)
+    SERVER_BASE_URL =os.environ.get("MANGA_BASE_WEBSOCKET_URL") if os.environ.get(
+        "MANGA_BASE_WEBSOCKET_URL") else "http://localhost:5000"
 
     # path_exists_make("../thumbnails")
     path_exists_make("/vanmanga/thumbnails")
@@ -16,7 +19,7 @@ def thumbnails_creator1(manga_object):
     with open(f"/vanmanga/thumbnails/{manga_id}.jpg", 'wb') as f:
         f.write(image_data)
 
-    manga_object["thumbnail"] = f"{manga_id}.jpg"
+    manga_object["thumbnail"] = f"{SERVER_BASE_URL}/api/dogemanga/thumbnail?mid={manga_id}"
 
     return manga_object
 

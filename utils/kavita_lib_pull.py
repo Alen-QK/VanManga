@@ -1,18 +1,18 @@
 import requests
 import os
 
-
 def kavita_lib_pull(lib):
-    KAVITA_URL = "" if os.environ.get("KAVITA_URL") is None else os.environ.get("KAVITA_URL")
+    KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
+    KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
     KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
     KAVITA_LIB_ID = "1" if os.environ.get("KAVITA_LIB_ID") is None else os.environ.get("KAVITA_LIB_ID")
 
-    if not KAVITA_URL or not KAVITA_ADMIN_APIKEY:
+    if not KAVITA_BASE_URL or not KAVITA_EXPOSE_URL or not KAVITA_ADMIN_APIKEY:
         print("########## 未配置Kavita环境，跳过该操作 ##########")
         return lib
 
     authEndpoint = "/api/Plugin/authenticate"
-    authUrl = f"{KAVITA_URL}{authEndpoint}?apiKey={KAVITA_ADMIN_APIKEY}&pluginName=pythonScanScript"
+    authUrl = f"{KAVITA_BASE_URL}{authEndpoint}?apiKey={KAVITA_ADMIN_APIKEY}&pluginName=pythonScanScript"
 
     try:
         response = requests.post(authUrl)
@@ -28,7 +28,7 @@ def kavita_lib_pull(lib):
         "Content-Type": "application/json",
     }
     seriesEndPoint = "/api/Series/all-v2"
-    seriesUrl = f"{KAVITA_URL}{seriesEndPoint}"
+    seriesUrl = f"{KAVITA_BASE_URL}{seriesEndPoint}"
     body = {}
 
     try:
@@ -48,7 +48,7 @@ def kavita_lib_pull(lib):
         kavitaLib_id = series["id"]
 
         try:
-            lib[manga_id]["kavita_url"] = f"{KAVITA_URL}/library/{KAVITA_LIB_ID}/series/{kavitaLib_id}"
+            lib[manga_id]["kavita_url"] = f"{KAVITA_EXPOSE_URL}/library/{KAVITA_LIB_ID}/series/{kavitaLib_id}"
         except Exception as e:
             print(e)
             continue
