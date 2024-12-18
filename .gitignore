@@ -1,3 +1,8 @@
 .venv
 downloaded
 modules/__pycache__
+/thumbnails/
+.idea
+/threadTest.py
+/utils/tempTest.py
+/testAPI.py

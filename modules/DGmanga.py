@@ -2,7 +2,6 @@ import base64
 import random
 import re
 import gevent
-import gevent
 from collections import defaultdict
 
 # import requests
@@ -11,10 +10,9 @@ from DrissionPage import SessionPage
 from threading import current_thread
 
 from modules.MangaSite import MangaSite
-from modules.ua_producer import ua_producer
-from modules.make_path import path_exists_make
-from modules.generate_file_path import do_zip_compress
-from modules.chapter_title_reformat import chapter_title_reformat
+from utils.make_path import path_exists_make
+from utils.generate_file_path import do_zip_compress
+from utils.chapter_title_reformat import chapter_title_reformat
 
 
 class DGmanga(MangaSite):
@@ -22,6 +20,7 @@ class DGmanga(MangaSite):
         self.manga_id = manga_id
         self.target_folder_path = ""
         self.Current_idx = float("-inf")
+        self.download_failed_count = 0
 
     def search_manga(self, search_name, CF_dict):
         # headers = {"User-Agent": ua_producer()}
@@ -54,13 +53,13 @@ class DGmanga(MangaSite):
                 manga_dict = defaultdict()
                 card = site_cards[i]
                 manga_id = card["data-manga-id"]
-                manga_name = card.find("h5", class_="card-title").text.replace("\n", "")
+                manga_name = card.find("h5", class_="card-title").text.replace("\n", "").strip()
                 artist_name = card.find("h6", class_="card-subtitle").text.replace(
                     "\n", ""
-                )
+                ).strip()
                 newest_epi = card.find("li", class_="list-group-item").text.replace(
                     "\n", ""
-                )
+                ).strip()
                 thumbnail_link = card.find("img", class_="card-img-top")["src"]
 
                 if CF_dict["cf_activate"]:
@@ -108,11 +107,17 @@ class DGmanga(MangaSite):
             # 检查漫画的连载状态
             site_card = site_main_content.find("div", class_="site-card")
             manga_status = site_card.find("small", class_="text-muted").text.split("\n")
-            serialization_text, recent_update = (
-                manga_status[1].split("：")[1],
-                manga_status[3].split("：")[1],
-            )
-            serialization = 0 if serialization_text == "連載中" else 1
+            # serialization_text, recent_update = (
+            #     manga_status[1].split("：")[1],
+            #     manga_status[3].split("：")[1],
+            # )
+            # serialization = 0 if serialization_text == "連載中" else 1
+            serialization = 1
+
+            for ele in manga_status:
+                if "連載中" in ele:
+                    serialization = 0
+                    break
 
             tab_content = soup.select(".tab-content > #site-manga__tab-pane-all")[0]
             # 它的长度之后对于last epi的计算有作用
@@ -121,7 +126,7 @@ class DGmanga(MangaSite):
             return [len(tab_content), serialization]
         except Exception as e:
             print(e)
-            return [0, 501]
+            return [501, 0]
 
     def generate_chapters_array(
         self, start, end, download_root_folder_path, manga_name, CF_dict
@@ -244,7 +249,7 @@ class DGmanga(MangaSite):
                     )
                 except Exception as e:
                     print(e)
-                    return 502
+                    return 503, chapter_title
 
                 for img_tag in img_collection:
                     try:
@@ -259,7 +264,12 @@ class DGmanga(MangaSite):
                 print(
                     f"\nCurrent running chapter task info:\n {chapter_title}: {current_thread().getName()}"
                 )
-                self.download_img(chapter_title, img_array, Error_dict, CF_dict)
+
+                self.download_failed_count = 0
+                result = self.download_img(chapter_title, img_array, Error_dict, CF_dict)
+
+                if not result:
+                    return 503
 
                 if self.Current_idx < idx:
                     self.Current_idx = idx
@@ -374,6 +384,9 @@ class DGmanga(MangaSite):
         failed_array = []
 
         for img in img_array:
+            if self.download_failed_count >= 10:
+                return False
+
             # 如果其他线程上的访问已经遭遇block，则当前线程上的单页抓取暂缓执行
             while Error_dict["g_error_flag"]:
                 # print('page线程停止中')
@@ -430,6 +443,7 @@ class DGmanga(MangaSite):
                 print(e)
                 print(target_link)
                 failed_array.append([img_title, target_link])
+                self.download_failed_count += 1
                 continue
 
         for retry_item in failed_array:
@@ -485,3 +499,5 @@ class DGmanga(MangaSite):
         print(f"########### {chapter_title} 压缩开始！ ############")
         do_zip_compress(folder_path)
         print(f"########### {chapter_title} 压缩完成！ ############")
+
+        return True

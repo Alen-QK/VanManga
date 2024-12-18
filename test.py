@@ -1,7 +1,7 @@
 import requests
 import json
 from bs4 import BeautifulSoup
-from modules.ua_producer import ua_producer
+from utils.ua_producer import ua_producer
 
 manga_lib = json.load(open("./manga_library.json"))
 
