@@ -46,7 +46,8 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
        **KAVITA_ADMIN_APIKEY - 可选**： 你的Kavita管理员ApiKey（必须是管理员权限），可从Kavita管理员“设置面板-API密钥/OPDS”一项找到。  
        **KAVITA_LIB_ID - 可选**： 你准备连接的Kavita库序号，默认值是1，仅在需要额外指定时推荐设置。  
        **FLARESOLVERR_URL - 可选**： 你的[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)内部地址，允许服务器连接FlareSolverr对漫画源的人机检查进行规避，如果正在使用DSM，请输入桥接路径。额外推荐版本为[21hsmw-flaresolverr](https://github.com/21hsmw/FlareSolverr)  
-       **NUMBER_OF_WORKERS - 可选**： 服务器同时并发下载章节的最大数量，默认值是2。默认值即推荐值，最大请不要超过4 or 5，非常容易被侦测并block。
+       **NUMBER_OF_WORKERS - 可选**： 服务器同时并发下载章节的最大数量，默认值是2。默认值即推荐值，最大请不要超过4 or 5，非常容易被侦测并block。    
+     **请注意，如果需要Kavita相关的服务能够正常配置，则KAVITA_BASE_URL，KAVITA_EXPOSE_URL，KAVITA_ADMIN_APIKEY为必选，缺失会导致相关功能默认关闭**
    - 文件路径映射
      > { 你的主机上想要设置为漫画下载库的物理地址 } <==> /downloaded  
        { 你的主机上想要设置为漫画 config 文件夹的物理地址 } <==> /vanmanga/eng_config  
