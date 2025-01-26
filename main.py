@@ -30,6 +30,7 @@ from flask_restful import Api, Resource, reqparse, request
 from flask_cors import CORS
 
 from datetime import timezone
+from collections import deque
 from DrissionPage import SessionPage
 
 from modules.DGmanga import DGmanga
@@ -123,6 +124,7 @@ CF_dict = {
 }
 # env_config = json.load(open('eng_config/config.json', encoding='utf-8'))
 download_root_folder_path = "/downloaded"
+download_task_dequeue = deque()
 
 
 # download_root_folder_path = "./downloaded" # ILLYA
@@ -196,6 +198,7 @@ def boot_scanning(manga_library):
         if manga["completed"] == False:
             print(manga["manga_name"] + "/" + manga["manga_id"] + "未完成初次抓取")
             Q.add_task(target=confirm_comic_task, manga_id=manga["manga_id"], dtype="0")
+            download_task_dequeue.append(manga["manga_id"])
             print(f"\n{manga['manga_id']} add to the queue\n")
         else:
             if manga["download_switch"] == 1:
@@ -231,6 +234,7 @@ def boot_scanning(manga_library):
                     Q.add_task(
                         target=confirm_comic_task, manga_id=manga["manga_id"], dtype="0"
                     )
+                    download_task_dequeue.append(manga["manga_id"])
                     print(f"\n{manga['manga_id']} add to the queue\n")
         # 因为初始化扫描本来是不限速的，但是如果此时加入了新的下载任务，那么同时访问多个源地址可能就会触发block，安全起见，应该在每扫描完一个后暂停1-3s。
         gevent.sleep(1)
@@ -353,6 +357,7 @@ def confirm_comic_task(manga_id):
         manga_library[manga_id]["serialization"] = serialization
 
         # print(manga_library)
+        download_task_dequeue.popleft()
 
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -601,6 +606,25 @@ class Pagination(Resource):
 
         return {"data": pagination, "code": 200}
 
+class LibSearch(Resource):
+    def get(self):
+        global manga_library
+        query = request.args.get("query")
+
+        if query == "":
+            return {"data": [], "code": 200}, 200
+
+        resultList = []
+
+        for key, value in manga_library.items():
+            manga_name = value['manga_name']
+            artist = value['artist_name']
+            manga_id = value['manga_id']
+
+            if query in manga_name or query in artist or query in manga_id:
+                resultList.append(value)
+
+        return {"data": resultList, "code": 200}, 200
 
 class DogeCurDownloading(Resource):
     def get(self):
@@ -742,6 +766,12 @@ class ThumbnailGetter(Resource):
             return {"data": False, "code": 404}
 
 
+class DownloadTaskQueue(Resource):
+    def get(self):
+
+        return {"data": download_task_dequeue, "code": 200}, 200
+
+
 class KavitaStatus(Resource):
     def get(self):
         return {"data": True, "code": 200} if KAVITA_BASE_URL and KAVITA_EXPOSE_URL and KAVITA_ADMIN_APIKEY else {"data": False, "code": 404}
@@ -843,6 +873,8 @@ def api_loader(api_instance):
     api_instance.add_resource(KavitaLogin, "/api/kavita/login")
     api_instance.add_resource(KavitaRefreshToken, "/api/kavita/refreshtoken")
     api_instance.add_resource(Pagination, "/api/dogemanga/libpagination")
+    api_instance.add_resource(DownloadTaskQueue, "/api/dogemanga/dlqueue")
+    api_instance.add_resource(LibSearch, "/api/dogemanga/libsearch")
     print("########### API初始化完成 ############")
 
 

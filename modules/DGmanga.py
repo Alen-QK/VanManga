@@ -269,7 +269,7 @@ class DGmanga(MangaSite):
                 result = self.download_img(chapter_title, img_array, Error_dict, CF_dict)
 
                 if not result:
-                    return 503
+                    return (503, chapter_title)
 
                 if self.Current_idx < idx:
                     self.Current_idx = idx
