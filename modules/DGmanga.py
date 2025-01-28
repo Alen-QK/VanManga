@@ -216,7 +216,7 @@ class DGmanga(MangaSite):
                 drissionSession.get(chapter_link)
                 response = drissionSession.response
 
-            if response.status_code == 429:
+            if response.status_code == 429: # 可能会出现NoneType的情况
                 Error_dict["g_error_flag"] = True
                 # 设定error_count的最大上限为5
                 if Error_dict["g_error_count"] < 6:
