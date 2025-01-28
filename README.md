@@ -2,7 +2,7 @@
 
 <div align="center">
   
-![newIcon](https://github.com/user-attachments/assets/bce77057-d130-49f4-96dc-a2e803b06208)
+![newIcon](https://github.com/user-attachments/assets/9f8b9d7e-e573-4adb-9503-2783ebd507a4)
 
 ![Brands](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/654e0b06-45e4-4754-8841-51abb64d019e)
 
