@@ -2,7 +2,7 @@
 
 <div align="center">
   
-![VanLogo](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/e4f30d77-a6fe-421a-b411-af73134ffdfa)
+![newIcon](https://github.com/user-attachments/assets/9f8b9d7e-e573-4adb-9503-2783ebd507a4)
 
 ![Brands](https://github.com/Alen-QK/python-vanmanga-crawler/assets/37805183/654e0b06-45e4-4754-8841-51abb64d019e)
 
@@ -42,11 +42,12 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
        **MANGA_BASE_URL**: 你用于连接后端的 URL，默认值是 http://localhost:5000. 如果你正在你的 Docker 中使用 bridge，你需要把'localhost'改成你的 bridge 的内部 IP。  
        **MANGA_BASE_WEBSOCKET_URL**: 你对外暴露的服务器 URL, 主要用于 WebSocket 服务, 默认值是 http://localhost:5000.  
        **KAVITA_BASE_URL - 可选**: 你Kavita服务器的主机内部地址，用于允许服务器从内网连接。如果正在使用DSM，请输入桥接路径。示例：http://192.168.0.1:5000  
-       **KAVITA_EXPOSE_URL - 可选**： 你Kavita服务器外部暴露地址，用于允许前端页面向Kavita服务跳转。示例：https://kavita:5000 
+       **KAVITA_EXPOSE_URL - 可选**： 你Kavita服务器外部暴露地址，用于允许前端页面向Kavita服务跳转。示例：https://kavita:5000   
        **KAVITA_ADMIN_APIKEY - 可选**： 你的Kavita管理员ApiKey（必须是管理员权限），可从Kavita管理员“设置面板-API密钥/OPDS”一项找到。  
        **KAVITA_LIB_ID - 可选**： 你准备连接的Kavita库序号，默认值是1，仅在需要额外指定时推荐设置。  
        **FLARESOLVERR_URL - 可选**： 你的[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)内部地址，允许服务器连接FlareSolverr对漫画源的人机检查进行规避，如果正在使用DSM，请输入桥接路径。额外推荐版本为[21hsmw-flaresolverr](https://github.com/21hsmw/FlareSolverr)  
-       **NUMBER_OF_WORKERS - 可选**： 服务器同时并发下载章节的最大数量，默认值是2。默认值即推荐值，最大请不要超过4 or 5，非常容易被侦测并block。
+       **NUMBER_OF_WORKERS - 可选**： 服务器同时并发下载章节的最大数量，默认值是2。默认值即推荐值，最大请不要超过4 or 5，非常容易被侦测并block。    
+     **请注意，如果需要Kavita相关的服务能够正常配置，则KAVITA_BASE_URL，KAVITA_EXPOSE_URL，KAVITA_ADMIN_APIKEY为必选，缺失会导致相关功能默认关闭**
    - 文件路径映射
      > { 你的主机上想要设置为漫画下载库的物理地址 } <==> /downloaded  
        { 你的主机上想要设置为漫画 config 文件夹的物理地址 } <==> /vanmanga/eng_config  
@@ -76,7 +77,12 @@ VanManga 是一款轻量化的，功能丰富的漫画抓取应用。该应用�
    1. 扫描 config 文件夹下的`manga_library.json`，将所有的已经存在的漫画记录都添加到服务器中，同时检查每部漫画是否有更新。
    2. 检查Kavita配置，在允许的情况下连接Kavita服务器获取meta data。
    3. 检查FlareSolverr配置，在允许的情况下连接Bypasser服务器，用于绕过CloudFlare检查。
-
+5. Kavita服务跳转设置  
+   **请注意，由于跳转功能依赖同源策略，所以请保证本服务于Kavita服务器运行在同一域名\桥接\本地服务中**。由于Kavita默认禁止同源策略，所以请依照以下步骤进行设置：
+   1. 打开Kavita容器```/kavita/config```的物理映射路径
+   2. 找到```appsettings.json```，建议先进行备份再修改
+   3. 在```appsettings.json```中添加```"AllowIFraming": true```，并保存
+   4. 重启Kavita服务，现在Kavita将支持同源策略，接受本服务的iframe自动登录功能
 ## 如何使用？
 
 1. **搜索漫画**  
