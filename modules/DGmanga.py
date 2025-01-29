@@ -216,6 +216,17 @@ class DGmanga(MangaSite):
                 drissionSession.get(chapter_link)
                 response = drissionSession.response
 
+            if response is None:
+                if Error_dict["g_error_count"] >= 6:
+                    return (503, chapter_title)
+
+                Error_dict["g_error_count"] += 1
+                print("\n章节抓取可能出现网络延迟，将重试\n")
+
+                return self.scrape_each_chapter(
+                    chapter, manga_library, Error_dict, his_length, idx, app, CF_dict
+                )
+
             if response.status_code == 429: # 可能会出现NoneType的情况
                 Error_dict["g_error_flag"] = True
                 # 设定error_count的最大上限为5

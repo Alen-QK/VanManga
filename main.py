@@ -23,7 +23,7 @@ from utils.TaskQueue import TaskQueue
 from utils.re_zip_downloaded import re_zip_run
 from utils.duplicate_check import duplicate_check
 
-from flask import Flask, render_template, send_file
+from flask import Flask, render_template, send_file, request
 from flask_socketio import SocketIO
 from flask_apscheduler import APScheduler
 from flask_restful import Api, Resource, reqparse, request
@@ -47,12 +47,38 @@ scheduler = APScheduler()
 
 LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get(
     "LIB_PATH")
+ENV_PATH = "/vanmanga/eng_config/env.json"
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
-FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
-KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
-KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
-KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
-NUMBER_OF_WORKERS = 2 if os.environ.get("NUMBER_OF_WORKERS") is None else int(os.environ.get("NUMBER_OF_WORKERS"))
+if os.path.exists(ENV_PATH):
+    try:
+        env_config = json.load(open(ENV_PATH), encoding="utf-8")
+        FLARESOLVERR_URL = env_config["FLARESOLVERR_URL"] if env_config["FLARESOLVERR_URL"] is not "" else ""
+        KAVITA_BASE_URL = env_config["KAVITA_BASE_URL"] if env_config["KAVITA_BASE_URL"] is not "" else ""
+        KAVITA_EXPOSE_URL = env_config["KAVITA_EXPOSE_URL"] if env_config["KAVITA_EXPOSE_URL"] is not "" else ""
+        KAVITA_ADMIN_APIKEY = env_config["KAVITA_ADMIN_APIKEY"] if env_config["KAVITA_ADMIN_APIKEY"] is not "" else ""
+        NUMBER_OF_WORKERS = env_config["NUMBER_OF_WORKERS"] if env_config["NUMBER_OF_WORKERS"] is not 2 else 2
+    except Exception as e:
+        print(e)
+        print("读取env.json失败，CloudFlare及Kavita相关设置默认关闭\n")
+        FLARESOLVERR_URL = ""
+        KAVITA_BASE_URL = ""
+        KAVITA_EXPOSE_URL = ""
+        KAVITA_ADMIN_APIKEY = ""
+        NUMBER_OF_WORKERS = 2
+else:
+    print("未找到env.json，CloudFlare及Kavita相关设置默认关闭\n")
+    FLARESOLVERR_URL = ""
+    KAVITA_BASE_URL = ""
+    KAVITA_EXPOSE_URL = ""
+    KAVITA_ADMIN_APIKEY = ""
+    NUMBER_OF_WORKERS = 2
+
+
+# FLARESOLVERR_URL = "" if os.environ.get("FLARESOLVERR_URL") is None else os.environ.get("FLARESOLVERR_URL")
+# KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
+# KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
+# KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
+# NUMBER_OF_WORKERS = 2 if os.environ.get("NUMBER_OF_WORKERS") is None else int(os.environ.get("NUMBER_OF_WORKERS"))
 
 if os.path.exists(LIB_PATH):
     try:
@@ -160,7 +186,7 @@ def dogemangaTask():
 def kavitaTask():
     global manga_library
     print("\n########## Start Kavita Lib Update Task ##########\n")
-    manga_library = kavita_lib_pull(manga_library)
+    manga_library = kavita_lib_pull(ENV_PATH, manga_library)
     print("\n########## Kavita Lib Update Task Over ##########\n")
 
 
@@ -486,7 +512,7 @@ def cfMonitor():
 
     # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
     if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
-        CF_dict = flaresolverr_bypasser(CF_dict, url)
+        CF_dict = flaresolverr_bypasser(ENV_PATH, CF_dict, url)
         print(f"\n########### 已经更新CF的验证信息 ############")
 
     # 否则说明dogemanga关闭了CF的检测，关闭CF_dict和绕过的所有相关机制
@@ -855,6 +881,33 @@ class KavitaRefreshToken(Resource):
             print(e)
             return {"data": "Refresh Token Failed", "code": 500}
 
+class EnvParamsUpdate(Resource):
+    def post(self):
+        global KAVITA_BASE_URL
+        global KAVITA_EXPOSE_URL
+        global KAVITA_ADMIN_APIKEY
+        global FLARESOLVERR_URL
+        global NUMBER_OF_WORKERS
+
+        json = request.get_json()
+
+        KAVITA_BASE_URL = json["KAVITA_BASE_URL"] if json["KAVITA_BASE_URL"] is not "" else KAVITA_BASE_URL
+        KAVITA_EXPOSE_URL = json["KAVITA_EXPOSE_URL"] if json["KAVITA_EXPOSE_URL"] is not "" else KAVITA_EXPOSE_URL
+        KAVITA_ADMIN_APIKEY = json["KAVITA_ADMIN_APIKEY"] if json["KAVITA_ADMIN_APIKEY"] is not "" else KAVITA_ADMIN_APIKEY
+        FLARESOLVERR_URL = json["FLARESOLVERR_URL"] if json["FLARESOLVERR_URL"] is not "" else FLARESOLVERR_URL
+        NUMBER_OF_WORKERS = json["NUMBER_OF_WORKERS"] if json["NUMBER_OF_WORKERS"] is not "" else NUMBER_OF_WORKERS
+
+        env_config = json.load(open(ENV_PATH), encoding="utf-8")
+
+        for param in env_config:
+            env_config[param] = json[param] if json[param] is not "" else env_config[param]
+
+        with open(ENV_PATH, "w", encoding="utf8") as f:
+            json_tmp = json.dumps(env_config, indent=4)
+            f.write(json_tmp)
+
+        return {"data": True, "code": 200}, 200
+
 
 def api_loader(api_instance):
     print("########### 初始化API ############")
@@ -875,6 +928,7 @@ def api_loader(api_instance):
     api_instance.add_resource(Pagination, "/api/dogemanga/libpagination")
     api_instance.add_resource(DownloadTaskQueue, "/api/dogemanga/dlqueue")
     api_instance.add_resource(LibSearch, "/api/dogemanga/libsearch")
+    api_instance.add_resource(EnvParamsUpdate, "/api/env/paramsupdate")
     print("########### API初始化完成 ############")
 
 

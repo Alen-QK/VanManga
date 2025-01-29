@@ -1,11 +1,21 @@
 import requests
+import json
 import os
 
-def kavita_lib_pull(lib):
-    KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
-    KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
-    KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
-    KAVITA_LIB_ID = "1" if os.environ.get("KAVITA_LIB_ID") is None else os.environ.get("KAVITA_LIB_ID")
+from main import KAVITA_BASE_URL, KAVITA_EXPOSE_URL, KAVITA_ADMIN_APIKEY
+
+
+def kavita_lib_pull(ENV_PATH, lib):
+    env_config = json.load(open(ENV_PATH), encoding="utf-8")
+    KAVITA_BASE_URL = "" if env_config["KAVITA_BASE_URL"] is "" else env_config["KAVITA_BASE_URL"]
+    KAVITA_EXPOSE_URL = "" if env_config["KAVITA_EXPOSE_URL"] is "" else env_config["KAVITA_EXPOSE_URL"]
+    KAVITA_ADMIN_APIKEY = "" if env_config["KAVITA_ADMIN_APIKEY"] is "" else env_config["KAVITA_ADMIN_APIKEY"]
+    KAVITA_LIB_ID = "1" if env_config["KAVITA_LIB_ID"] is "1" else env_config["KAVITA_LIB_ID"]
+
+    # KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
+    # KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")
+    # KAVITA_ADMIN_APIKEY = "" if os.environ.get("KAVITA_ADMIN_APIKEY") is None else os.environ.get("KAVITA_ADMIN_APIKEY")
+    # KAVITA_LIB_ID = "1" if os.environ.get("KAVITA_LIB_ID") is None else os.environ.get("KAVITA_LIB_ID")
 
     if not KAVITA_BASE_URL or not KAVITA_EXPOSE_URL or not KAVITA_ADMIN_APIKEY:
         print("########## 未配置Kavita环境，跳过该操作 ##########")

@@ -8,7 +8,7 @@ def thumbnails_creator1(manga_object):
     manga_id = manga_object["manga_id"]
     image_data_base64 = manga_object["thumbnail"]
     image_data = base64.b64decode(image_data_base64)
-    SERVER_BASE_URL =os.environ.get("MANGA_BASE_WEBSOCKET_URL") if os.environ.get(
+    SERVER_BASE_URL = os.environ.get("MANGA_BASE_WEBSOCKET_URL") if os.environ.get(
         "MANGA_BASE_WEBSOCKET_URL") else "http://localhost:5000"
 
     # path_exists_make("../thumbnails")

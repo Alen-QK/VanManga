@@ -3,9 +3,14 @@ import requests
 import json
 import os
 
-def flaresolverr_bypasser(CF_dict, url):
+from main import env_config
+
+
+def flaresolverr_bypasser(ENV_PATH, CF_dict, url):
+    env_config = json.load(open(ENV_PATH), encoding="utf-8")
+
     retryCount = 0
-    FLARESOLVERR_URL = os.environ.get('FLARESOLVERR_URL')
+    FLARESOLVERR_URL = env_config['FLARESOLVERR_URL']
     CF_dict["cf_activate"] = True
 
     headers = {"Content-Type": "application/json"}

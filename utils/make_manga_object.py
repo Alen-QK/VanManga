@@ -9,6 +9,7 @@ def make_manga_object(manga_object):
     object_dict["completed"] = False  # 初次下载是否完成
     object_dict["serialization"] = 0  # 源中真实的连载状态
     object_dict["download_switch"] = 0  # 受控于用户的真实抓取状态
+    object_dict["kavita_url"] = "None" # Kavita库链接的默认值，用于在获取正确链接之前告知前端处理
 
     dt = datetime.datetime.now(timezone.utc)
     utc_time = dt.replace(tzinfo=timezone.utc)
