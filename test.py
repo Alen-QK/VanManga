@@ -2,18 +2,11 @@ import requests
 import json
 from bs4 import BeautifulSoup
 from utils.ua_producer import ua_producer
+from opencc import OpenCC
 
-manga_lib = json.load(open("./dev_config/manga_library.json", encoding="utf-8"))
-
-searchInput = "98921782"
-result = []
-for key, value in manga_lib.items():
-    manga_name = value['manga_name']
-    artist = value['artist_name']
-    manga_id = value['manga_id']
-
-    if searchInput in manga_name or searchInput in artist or searchInput in manga_id:
-        result.append(value)
-
+cc = OpenCC('t2s')
+sample = "繁体中文asdsafas 111233"
+result = cc.convert(sample)
 print(result)
-print("done")
+
+

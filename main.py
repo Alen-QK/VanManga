@@ -1,5 +1,6 @@
 import gevent.monkey
 
+from utils import t2c
 from utils.flaresolverr_bypasser import flaresolverr_bypasser
 from utils.kavita_lib_pull import kavita_lib_pull
 from utils.lib_pagination import libPagination
@@ -571,6 +572,7 @@ class DogePost(Resource):
 
         submit_sign = args["submit_sign"]
         manga_id = manga_object["manga_id"]
+        manga_object["manga_name"] = t2c(manga_object["manga_name"])
 
         if submit_sign == "0":
             if manga_id not in manga_library:
