@@ -1,6 +1,6 @@
 .venv
 downloaded
-modules/__pycache__
+sites/__pycache__
 /thumbnails/
 .idea
 /threadTest.py

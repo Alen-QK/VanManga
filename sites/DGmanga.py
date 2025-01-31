@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from DrissionPage import SessionPage
 from threading import current_thread
 
-from modules.MangaSite import MangaSite
+from sites.MangaSite import MangaSite
 from utils.make_path import path_exists_make
 from utils.generate_file_path import do_zip_compress
 from utils.chapter_title_reformat import chapter_title_reformat
@@ -144,6 +144,9 @@ class DGmanga(MangaSite):
         if chapters_array == 501:
             return 501
 
+        if chapters_array == 504:
+            return 504
+
         chapters_array.reverse()
         chapters_array = chapters_array[start - 1 : end]
 
@@ -164,6 +167,12 @@ class DGmanga(MangaSite):
             response = drissionSession.response
 
         soup = BeautifulSoup(response.text, "lxml")
+
+        dmac_modal = soup.find("h5", class_="modal-title")
+        if dmac_modal:
+            if "DMCA" in dmac_modal.text:
+                print(f"Manga {target} received a DMCA takedown notice.")
+                return 504
 
         try:
             tab_content = soup.select(".tab-content > #site-manga__tab-pane-all")[0]

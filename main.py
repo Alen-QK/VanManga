@@ -34,7 +34,7 @@ from datetime import timezone
 from collections import deque
 from DrissionPage import SessionPage
 
-from modules.DGmanga import DGmanga
+from sites.DGmanga import DGmanga
 
 app = Flask(
     __name__,
@@ -187,7 +187,7 @@ def dogemangaTask():
 def kavitaTask():
     global manga_library
     print("\n########## Start Kavita Lib Update Task ##########\n")
-    manga_library = kavita_lib_pull(ENV_PATH, manga_library)
+    manga_library, _ = kavita_lib_pull(ENV_PATH, manga_library)
     print("\n########## Kavita Lib Update Task Over ##########\n")
 
 
@@ -309,6 +309,20 @@ def confirm_comic_task(manga_id):
         if chapters_array == 501:
             print("\nMight meet human check, shutdown the task.\n")
             return "Might meet human check, shutdown the task."
+
+        if chapters_array == 504:
+            print(f"{manga_name} is restricted by DMCA, please contact administrator.\n")
+            del manga_library[manga_id]
+            with open(LIB_PATH, "w", encoding="utf8") as f:
+                json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
+                f.write(json_tmp)
+
+            payload = {
+                "manga_id": manga_id,
+                "manga_name": manga_name,
+            }
+            socketio.emit("dmca_alert", payload)
+            return
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=NUMBER_OF_WORKERS) as executor:
             finish = list()
@@ -900,6 +914,7 @@ class EnvParamsUpdate(Resource):
         NUMBER_OF_WORKERS = json["NUMBER_OF_WORKERS"] if json["NUMBER_OF_WORKERS"] is not "" else NUMBER_OF_WORKERS
 
         env_config = json.load(open(ENV_PATH), encoding="utf-8")
+        env_copy = copy.copy(env_config)
 
         for param in env_config:
             env_config[param] = json[param] if json[param] is not "" else env_config[param]
@@ -908,7 +923,21 @@ class EnvParamsUpdate(Resource):
             json_tmp = json.dumps(env_config, indent=4)
             f.write(json_tmp)
 
-        return {"data": True, "code": 200}, 200
+        _, kvConnectionTest = kavita_lib_pull(ENV_PATH, manga_library)
+        if kvConnectionTest == 0:
+            with open(ENV_PATH, "w", encoding="utf8") as f:
+                json_tmp = json.dumps(env_copy, indent=4)
+                f.write(json_tmp)
+            return {"data": "Kavita configuration error", "code": 434}
+
+        cfMonitor()
+        if CF_dict["cf_clearance_value"] == "":
+            with open(ENV_PATH, "w", encoding="utf8") as f:
+                json_tmp = json.dumps(env_copy, indent=4)
+                f.write(json_tmp)
+            return {"data": "Bypasser configuration error", "code": 434}
+
+        return {"data": "Connection tests all success", "code": 200}, 200
 
 
 def api_loader(api_instance):
