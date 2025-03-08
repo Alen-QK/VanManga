@@ -2,6 +2,7 @@ import gevent.monkey
 
 from utils.flaresolverr_bypasser import flaresolverr_bypasser
 from utils.kavita_lib_pull import kavita_lib_pull
+from utils.kavita_scan_folder import kavita_scan_folder
 from utils.lib_pagination import libPagination
 from utils.thumbnails_creator import thumbnails_creator
 
@@ -353,6 +354,10 @@ def confirm_comic_task(manga_id):
         manga_library[manga_id]["serialization"] = serialization
 
         # print(manga_library)
+        if kavita_scan_folder(f"{manga_name}${manga_id}"):
+            print("########### 已成功提交文件扫描 ###########")
+        else:
+            print("########### 文件扫描提交失败 ###########")
 
         with open(LIB_PATH, "w", encoding="utf8") as f:
             json_tmp = json.dumps(manga_library, indent=4, ensure_ascii=False)
@@ -448,6 +453,11 @@ def download_chapter_task(chapter):
     complete_info["completed"] = True
     socketio.emit("complete_info", complete_info)
     Current_download = ""
+
+    if kavita_scan_folder(f"{manga_name}${manga_id}"):
+        print("########### 已成功提交文件扫描 ###########")
+    else:
+        print("########### 文件扫描提交失败 ###########")
 
 
 def re_zip_task():
