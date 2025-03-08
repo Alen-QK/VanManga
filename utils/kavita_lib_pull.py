@@ -2,15 +2,11 @@ import requests
 import json
 import os
 
-from main import KAVITA_BASE_URL, KAVITA_EXPOSE_URL, KAVITA_ADMIN_APIKEY
 
-
-def kavita_lib_pull(ENV_PATH, lib):
-    env_config = json.load(open(ENV_PATH), encoding="utf-8")
-    KAVITA_BASE_URL = "" if env_config["KAVITA_BASE_URL"] is "" else env_config["KAVITA_BASE_URL"]
-    KAVITA_EXPOSE_URL = "" if env_config["KAVITA_EXPOSE_URL"] is "" else env_config["KAVITA_EXPOSE_URL"]
-    KAVITA_ADMIN_APIKEY = "" if env_config["KAVITA_ADMIN_APIKEY"] is "" else env_config["KAVITA_ADMIN_APIKEY"]
-    KAVITA_LIB_ID = "1" if env_config["KAVITA_LIB_ID"] is "1" else env_config["KAVITA_LIB_ID"]
+def kavita_lib_pull(KAVITA_BASE_URL, KAVITA_EXPOSE_URL, KAVITA_ADMIN_APIKEY, KAVITA_LIB_ID, lib):
+    if lib is None:
+        print("########## 漫画库为空，跳过该操作 ##########")
+        return lib, 0
 
     # KAVITA_BASE_URL = "" if os.environ.get("KAVITA_BASE_URL") is None else os.environ.get("KAVITA_BASE_URL")
     # KAVITA_EXPOSE_URL = "" if os.environ.get("KAVITA_EXPOSE_URL") is None else os.environ.get("KAVITA_EXPOSE_URL")

@@ -57,6 +57,7 @@ class DGmanga(MangaSite):
                 artist_name = card.find("h6", class_="card-subtitle").text.replace(
                     "\n", ""
                 ).strip()
+                recent_update_date = card.find("small", class_="text-muted").text.split("最近更新：")[1]
                 newest_epi = card.find("li", class_="list-group-item").text.replace(
                     "\n", ""
                 ).strip()
@@ -75,6 +76,7 @@ class DGmanga(MangaSite):
                 manga_dict["manga_name"] = manga_name
                 manga_dict["manga_id"] = manga_id
                 manga_dict["artist_name"] = artist_name
+                manga_dict["recent_update_date"] = recent_update_date
                 manga_dict["newest_epi"] = newest_epi
                 manga_dict["thumbnail"] = encoded_thumbnail
 

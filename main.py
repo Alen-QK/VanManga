@@ -1,6 +1,6 @@
 import gevent.monkey
 
-from utils import t2c
+from utils.t2c import t2c
 from utils.flaresolverr_bypasser import flaresolverr_bypasser
 from utils.kavita_lib_pull import kavita_lib_pull
 from utils.lib_pagination import libPagination
@@ -49,15 +49,17 @@ scheduler = APScheduler()
 LIB_PATH = "/vanmanga/eng_config/manga_library.json" if os.environ.get("LIB_PATH") is None else os.environ.get(
     "LIB_PATH")
 ENV_PATH = "/vanmanga/eng_config/env.json"
+ADMIN_PASSKEY = os.environ.get("ADMIN_PASSKEY") if os.environ.get("ADMIN_PASSKEY") else ""
 # LIB_PATH = "./eng_config/manga_library.json" # ILLYA
 if os.path.exists(ENV_PATH):
     try:
-        env_config = json.load(open(ENV_PATH), encoding="utf-8")
-        FLARESOLVERR_URL = env_config["FLARESOLVERR_URL"] if env_config["FLARESOLVERR_URL"] is not "" else ""
-        KAVITA_BASE_URL = env_config["KAVITA_BASE_URL"] if env_config["KAVITA_BASE_URL"] is not "" else ""
-        KAVITA_EXPOSE_URL = env_config["KAVITA_EXPOSE_URL"] if env_config["KAVITA_EXPOSE_URL"] is not "" else ""
-        KAVITA_ADMIN_APIKEY = env_config["KAVITA_ADMIN_APIKEY"] if env_config["KAVITA_ADMIN_APIKEY"] is not "" else ""
-        NUMBER_OF_WORKERS = env_config["NUMBER_OF_WORKERS"] if env_config["NUMBER_OF_WORKERS"] is not 2 else 2
+        env_config = json.load(open(ENV_PATH, encoding="utf-8"))
+        FLARESOLVERR_URL = env_config["FLARESOLVERR_URL"] if env_config["FLARESOLVERR_URL"] != "" else ""
+        KAVITA_BASE_URL = env_config["KAVITA_BASE_URL"] if env_config["KAVITA_BASE_URL"] != "" else ""
+        KAVITA_EXPOSE_URL = env_config["KAVITA_EXPOSE_URL"] if env_config["KAVITA_EXPOSE_URL"] != "" else ""
+        KAVITA_ADMIN_APIKEY = env_config["KAVITA_ADMIN_APIKEY"] if env_config["KAVITA_ADMIN_APIKEY"] != "" else ""
+        KAVITA_LIB_ID = env_config["KAVITA_LIB_ID"] if env_config["KAVITA_LIB_ID"] != "" else "1"
+        NUMBER_OF_WORKERS = env_config["NUMBER_OF_WORKERS"] if env_config["NUMBER_OF_WORKERS"] != 2 else 2
     except Exception as e:
         print(e)
         print("读取env.json失败，CloudFlare及Kavita相关设置默认关闭\n")
@@ -65,6 +67,7 @@ if os.path.exists(ENV_PATH):
         KAVITA_BASE_URL = ""
         KAVITA_EXPOSE_URL = ""
         KAVITA_ADMIN_APIKEY = ""
+        KAVITA_LIB_ID = "1"
         NUMBER_OF_WORKERS = 2
 else:
     print("未找到env.json，CloudFlare及Kavita相关设置默认关闭\n")
@@ -72,6 +75,7 @@ else:
     KAVITA_BASE_URL = ""
     KAVITA_EXPOSE_URL = ""
     KAVITA_ADMIN_APIKEY = ""
+    KAVITA_LIB_ID = "1"
     NUMBER_OF_WORKERS = 2
 
 
@@ -187,7 +191,7 @@ def dogemangaTask():
 def kavitaTask():
     global manga_library
     print("\n########## Start Kavita Lib Update Task ##########\n")
-    manga_library, _ = kavita_lib_pull(ENV_PATH, manga_library)
+    manga_library, _ = kavita_lib_pull(KAVITA_BASE_URL, KAVITA_EXPOSE_URL, KAVITA_ADMIN_APIKEY, KAVITA_LIB_ID, manga_library)
     print("\n########## Kavita Lib Update Task Over ##########\n")
 
 
@@ -527,7 +531,7 @@ def cfMonitor():
 
     # 说明CF启动了人机交互检查，需要通过flaresovlerr来通过验证，并获取cookie
     if response.status_code == 403 or "?__cf_chl_rt_tk" in response.text:
-        CF_dict = flaresolverr_bypasser(ENV_PATH, CF_dict, url)
+        CF_dict = flaresolverr_bypasser(FLARESOLVERR_URL, CF_dict, url)
         print(f"\n########### 已经更新CF的验证信息 ############")
 
     # 否则说明dogemanga关闭了CF的检测，关闭CF_dict和绕过的所有相关机制
@@ -587,6 +591,7 @@ class DogePost(Resource):
         submit_sign = args["submit_sign"]
         manga_id = manga_object["manga_id"]
         manga_object["manga_name"] = t2c(manga_object["manga_name"])
+        del manga_object["recent_update_date"]
 
         if submit_sign == "0":
             if manga_id not in manga_library:
@@ -898,47 +903,77 @@ class KavitaRefreshToken(Resource):
             return {"data": "Refresh Token Failed", "code": 500}
 
 class EnvParamsUpdate(Resource):
+    def get(self):
+        admin_passkey = request.args.get("admin_passkey")
+
+        if admin_passkey == ADMIN_PASSKEY:
+            data = {
+                "KAVITA_BASE_URL" : KAVITA_BASE_URL,
+                "KAVITA_EXPOSE_URL" : KAVITA_EXPOSE_URL,
+                "KAVITA_ADMIN_APIKEY" : KAVITA_ADMIN_APIKEY,
+                "FLARESOLVERR_URL" : FLARESOLVERR_URL,
+                "NUMBER_OF_WORKERS" : NUMBER_OF_WORKERS,
+                "KAVITA_LIB_ID": KAVITA_LIB_ID
+            }
+            return {"data": data, "code": 200}, 200
+        else:
+            return {"data": False, "code": 401}, 401
+
     def post(self):
         global KAVITA_BASE_URL
         global KAVITA_EXPOSE_URL
         global KAVITA_ADMIN_APIKEY
         global FLARESOLVERR_URL
+        global KAVITA_LIB_ID
         global NUMBER_OF_WORKERS
+        global ADMIN_PASSKEY
 
-        json = request.get_json()
+        json_data = request.get_json()
 
-        KAVITA_BASE_URL = json["KAVITA_BASE_URL"] if json["KAVITA_BASE_URL"] is not "" else KAVITA_BASE_URL
-        KAVITA_EXPOSE_URL = json["KAVITA_EXPOSE_URL"] if json["KAVITA_EXPOSE_URL"] is not "" else KAVITA_EXPOSE_URL
-        KAVITA_ADMIN_APIKEY = json["KAVITA_ADMIN_APIKEY"] if json["KAVITA_ADMIN_APIKEY"] is not "" else KAVITA_ADMIN_APIKEY
-        FLARESOLVERR_URL = json["FLARESOLVERR_URL"] if json["FLARESOLVERR_URL"] is not "" else FLARESOLVERR_URL
-        NUMBER_OF_WORKERS = json["NUMBER_OF_WORKERS"] if json["NUMBER_OF_WORKERS"] is not "" else NUMBER_OF_WORKERS
+        KAVITA_BASE_URL_temp = json_data["KAVITA_BASE_URL"]
+        KAVITA_EXPOSE_URL_temp = json_data["KAVITA_EXPOSE_URL"]
+        KAVITA_ADMIN_APIKEY_temp = json_data["KAVITA_ADMIN_APIKEY"]
+        KAVITA_LIB_ID_temp = json_data["KAVITA_LIB_ID"]
+        FLARESOLVERR_URL_temp = json_data["FLARESOLVERR_URL"]
+        NUMBER_OF_WORKERS = json_data["NUMBER_OF_WORKERS"] if json_data["NUMBER_OF_WORKERS"] != "" else NUMBER_OF_WORKERS
 
-        env_config = json.load(open(ENV_PATH), encoding="utf-8")
-        env_copy = copy.copy(env_config)
+        if KAVITA_BASE_URL_temp != "" and KAVITA_EXPOSE_URL_temp != "" and KAVITA_ADMIN_APIKEY_temp != "":
+            _, kvConnectionTest = kavita_lib_pull(KAVITA_BASE_URL_temp, KAVITA_EXPOSE_URL_temp, KAVITA_ADMIN_APIKEY_temp, KAVITA_LIB_ID_temp, manga_library)
+            if kvConnectionTest == 0:
+                return {"data": "Kavita configuration error", "code": 434}
+            else:
+                KAVITA_BASE_URL = KAVITA_BASE_URL_temp
+                KAVITA_EXPOSE_URL = KAVITA_EXPOSE_URL_temp
+                KAVITA_ADMIN_APIKEY = KAVITA_ADMIN_APIKEY_temp
+                KAVITA_LIB_ID = KAVITA_LIB_ID_temp
 
-        for param in env_config:
-            env_config[param] = json[param] if json[param] is not "" else env_config[param]
+        if FLARESOLVERR_URL_temp != "":
+            try:
+                cfMonitor()
+                FLARESOLVERR_URL = FLARESOLVERR_URL_temp
+            except Exception as e:
+                return {"data": "Bypasser configuration error", "code": 444}
 
-        with open(ENV_PATH, "w", encoding="utf8") as f:
-            json_tmp = json.dumps(env_config, indent=4)
-            f.write(json_tmp)
+        try:
+            KAVITA_LIB_ID = "1" if KAVITA_LIB_ID_temp == "" else KAVITA_LIB_ID_temp
+            newConfig = {
+                "KAVITA_BASE_URL" : KAVITA_BASE_URL,
+                "KAVITA_EXPOSE_URL" : KAVITA_EXPOSE_URL,
+                "KAVITA_ADMIN_APIKEY" : KAVITA_ADMIN_APIKEY,
+                "FLARESOLVERR_URL" : FLARESOLVERR_URL,
+                "NUMBER_OF_WORKERS" : NUMBER_OF_WORKERS,
+                "KAVITA_LIB_ID" : KAVITA_LIB_ID,
+            }
 
-        _, kvConnectionTest = kavita_lib_pull(ENV_PATH, manga_library)
-        if kvConnectionTest == 0:
             with open(ENV_PATH, "w", encoding="utf8") as f:
-                json_tmp = json.dumps(env_copy, indent=4)
+                json_tmp = json.dumps(newConfig, indent=4)
                 f.write(json_tmp)
-            return {"data": "Kavita configuration error", "code": 434}
 
-        cfMonitor()
-        if CF_dict["cf_clearance_value"] == "":
-            with open(ENV_PATH, "w", encoding="utf8") as f:
-                json_tmp = json.dumps(env_copy, indent=4)
-                f.write(json_tmp)
-            return {"data": "Bypasser configuration error", "code": 434}
+            return {"data": "Connection tests all success", "code": 200}, 200
 
-        return {"data": "Connection tests all success", "code": 200}, 200
-
+        except Exception as e:
+            print(e)
+            return {"data": "Configuration update internal error", "code": 500}, 500
 
 def api_loader(api_instance):
     print("########### 初始化API ############")
@@ -981,10 +1016,10 @@ gevent.sleep(0)
 初始化扫描只会把它开始的时点前library中所有的manga扫描一遍。这样就做到了既支持搜索和提交的API，同时初始化任务也不会报错。
 """
 boot_manga_lib = copy.copy(manga_library)
-gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
-gevent.sleep(0)
+# gevent.threading.Thread(target=boot_scanning, args=[boot_manga_lib]).start()
+# gevent.sleep(0)
 
-if KAVITA_BASE_URL is not None and KAVITA_EXPOSE_URL is not None and KAVITA_ADMIN_APIKEY is not None:
+if KAVITA_BASE_URL != "" and KAVITA_EXPOSE_URL != "" and KAVITA_ADMIN_APIKEY != "":
     kavitaTask()
 
 print("\nbootScanning完成，开始设置计划任务......")
